@@ -39,3 +39,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Xcode build logs
+.expo/xcodebuild.log
+.expo/xcodebuild-error.log
+
+# Claude
+.claude/
+CLAUDE.md
+task.md
