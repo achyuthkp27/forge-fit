@@ -247,7 +247,7 @@ export default function WorkoutScreen() {
       </TouchableOpacity>
 
       {/* Exercise list */}
-      <View style={styles.exerciseList}>
+      <View style={[styles.exerciseList, { paddingBottom: insets.bottom }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.exerciseListContent}>
           {currentWorkout.exercises.map((ex, i) => (
             <TouchableOpacity
