@@ -26,6 +26,8 @@ export default function WorkoutBuilder() {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<number | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<number | null>(null);
 
   const filteredExercises = searchQuery ? searchExercises(searchQuery) : exercises.slice(0, 10);
 
@@ -204,9 +206,14 @@ export default function WorkoutBuilder() {
 
                 <View style={styles.exerciseHeader}>
                   <Text style={styles.exerciseName}>{ex.exerciseName}</Text>
-                  <TouchableOpacity onPress={() => handleRemoveExercise(index)}>
-                    <Icon name={Icons.x} size={18} color="#71717A" />
-                  </TouchableOpacity>
+                  <View style={styles.exerciseActions}>
+                    <TouchableOpacity onPress={() => setEditingExercise(index === editingExercise ? null : index)}>
+                      <Icon name={Icons.edit2} size={18} color="#F97316" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleRemoveExercise(index)} style={{ marginLeft: 12 }}>
+                      <Icon name={Icons.x} size={18} color="#71717A" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.exerciseInputs}>
@@ -307,25 +314,32 @@ export default function WorkoutBuilder() {
           )}
         </View>
 
-        <View style={styles.helpSection}>
-          <Text style={styles.helpTitle}>Format Guide</Text>
-          <View style={styles.helpItem}>
-            <Text style={styles.helpLabel}>AMRAP</Text>
-            <Text style={styles.helpDesc}>As Many Reps As Possible in fixed time</Text>
+        <TouchableOpacity style={styles.helpSection} onPress={() => setShowHelp(!showHelp)}>
+          <View style={styles.helpHeader}>
+            <Text style={styles.helpTitle}>Format Guide</Text>
+            <Icon name={showHelp ? Icons.chevronUp : Icons.chevronDown} size={18} color="#71717A" />
           </View>
-          <View style={styles.helpItem}>
-            <Text style={styles.helpLabel}>EMOM</Text>
-            <Text style={styles.helpDesc}>Every Minute On the Minute</Text>
-          </View>
-          <View style={styles.helpItem}>
-            <Text style={styles.helpLabel}>Superset</Text>
-            <Text style={styles.helpDesc}>Do 2 exercises back-to-back, rest after both</Text>
-          </View>
-          <View style={styles.helpItem}>
-            <Text style={styles.helpLabel}>Circuit</Text>
-            <Text style={styles.helpDesc}>3+ exercises in a row, then rest</Text>
-          </View>
-        </View>
+          {showHelp && (
+            <>
+              <View style={styles.helpItem}>
+                <Text style={styles.helpLabel}>AMRAP</Text>
+                <Text style={styles.helpDesc}>As Many Reps As Possible in fixed time</Text>
+              </View>
+              <View style={styles.helpItem}>
+                <Text style={styles.helpLabel}>EMOM</Text>
+                <Text style={styles.helpDesc}>Every Minute On the Minute</Text>
+              </View>
+              <View style={styles.helpItem}>
+                <Text style={styles.helpLabel}>Superset</Text>
+                <Text style={styles.helpDesc}>Do 2 exercises back-to-back, rest after both</Text>
+              </View>
+              <View style={styles.helpItem}>
+                <Text style={styles.helpLabel}>Circuit</Text>
+                <Text style={styles.helpDesc}>3+ exercises in a row, then rest</Text>
+              </View>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={showExercisePicker} transparent animationType="slide">
@@ -370,7 +384,7 @@ export default function WorkoutBuilder() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D0D0D' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
   title: { fontSize: 18, fontWeight: '600', color: '#fff' },
   saveButton: { backgroundColor: '#F97316', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   saveButtonDisabled: { backgroundColor: '#3F3F46' },
@@ -392,21 +406,22 @@ const styles = StyleSheet.create({
   supersetBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, backgroundColor: 'rgba(249, 115, 22, 0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
   supersetText: { fontSize: 12, color: '#F97316', fontWeight: '600' },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  exerciseActions: { flexDirection: 'row', alignItems: 'center' },
   exerciseName: { fontSize: 16, fontWeight: '600', color: '#fff' },
   exerciseInputs: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   inputGroup: { alignItems: 'center' },
   inputLabel: { fontSize: 12, color: '#71717A', marginBottom: 4 },
-  smallInput: { backgroundColor: '#27272A', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: '#fff', fontSize: 14, width: 50, textAlign: 'center' },
+  smallInput: { backgroundColor: '#27272A', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: '#fff', fontSize: 16, width: 70, textAlign: 'center' },
   formatRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  formatBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: '#27272A' },
+  formatBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#27272A' },
   formatBtnActive: { backgroundColor: '#F97316' },
-  formatText: { fontSize: 12, color: '#71717A', fontWeight: '600' },
+  formatText: { fontSize: 13, color: '#71717A', fontWeight: '600' },
   formatTextActive: { color: '#fff' },
   emomRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   emomLabel: { fontSize: 14, color: '#71717A' },
-  emomInput: { backgroundColor: '#27272A', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, color: '#fff', fontSize: 14, width: 50, textAlign: 'center' },
+  emomInput: { backgroundColor: '#27272A', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: '#fff', fontSize: 16, width: 60, textAlign: 'center' },
   actionRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#27272A', borderRadius: 6 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#27272A', borderRadius: 10 },
   actionText: { fontSize: 12, color: '#F97316' },
   actionTextPurple: { fontSize: 12, color: '#8B5CF6' },
   removeSuperset: { marginTop: 8 },
@@ -415,7 +430,8 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 16, color: '#71717A', marginTop: 12 },
   emptySubtext: { fontSize: 13, color: '#52525B', marginTop: 4 },
   helpSection: { backgroundColor: '#18181B', borderRadius: 12, padding: 16, marginBottom: 40 },
-  helpTitle: { fontSize: 14, fontWeight: '600', color: '#fff', marginBottom: 12 },
+  helpHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  helpTitle: { fontSize: 14, fontWeight: '600', color: '#fff' },
   helpItem: { flexDirection: 'row', marginBottom: 8 },
   helpLabel: { fontSize: 13, color: '#F97316', fontWeight: '600', width: 80 },
   helpDesc: { fontSize: 13, color: '#71717A', flex: 1 },

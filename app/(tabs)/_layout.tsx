@@ -23,6 +23,6 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: { backgroundColor: '#18181B', borderTopColor: '#27272A', borderTopWidth: 1, height: 85, paddingBottom: 25, paddingTop: 10 },
+  tabBar: { backgroundColor: '#18181B', borderTopColor: '#27272A', borderTopWidth: 1, height: 70, paddingBottom: 15, paddingTop: 8 },
   tabLabel: { fontSize: 11, fontWeight: '600' },
 });

@@ -7,9 +7,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Exercise } from '../../types';
 
 const difficulties = ['beginner', 'intermediate', 'advanced'];
+const equipmentList = ['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight'];
 
 export default function Exercises() {
-  const { exercises, addExercise } = useWorkoutStore();
+  const { exercises, workouts, addExercise } = useWorkoutStore();
   const [selectedMuscle, setSelectedMuscle] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEquipment, setSelectedEquipment] = useState<string | null>(null);
@@ -17,8 +18,32 @@ export default function Exercises() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [newExercise, setNewExercise] = useState({ name: '', muscleGroups: '', equipment: 'barbell', difficulty: 'beginner' });
+
+  // Get exercises used in workouts
+  const usedExerciseIds = useMemo(() => {
+    const ids = new Set<string>();
+    workouts.forEach(w => {
+      w.exercises.forEach(ex => {
+        if (ex.exerciseId) ids.add(ex.exerciseId);
+      });
+    });
+    return ids;
+  }, [workouts]);
+
+  // Recent exercises (most recently used)
+  const recentExercises = useMemo(() => {
+    const sorted = [...exercises].sort((a, b) => {
+      const aUsed = usedExerciseIds.has(a.id);
+      const bUsed = usedExerciseIds.has(b.id);
+      if (aUsed && !bUsed) return -1;
+      if (!aUsed && bUsed) return 1;
+      return 0;
+    });
+    return sorted.slice(0, 5);
+  }, [exercises, usedExerciseIds]);
 
   const toggleFavorite = (id: string) => {
     setFavorites(prev => {
@@ -74,6 +99,22 @@ export default function Exercises() {
     setShowDetailsModal(true);
   };
 
+  const handleEquipmentSelect = (equipment: string | null) => {
+    setSelectedEquipment(equipment);
+    setShowEquipmentPicker(false);
+  };
+
+  const getEquipmentIcon = (equipment: string | null) => {
+    switch (equipment?.toLowerCase()) {
+      case 'barbell': return Icons.barbell;
+      case 'dumbbell': return Icons.dumbbell;
+      case 'cable': return Icons.cable;
+      case 'machine': return Icons.machine;
+      case 'bodyweight': return Icons.bodyweight;
+      default: return Icons.dumbbell;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#1a1a1a', '#0D0D0D']} style={StyleSheet.absoluteFill} />
@@ -93,8 +134,13 @@ export default function Exercises() {
         )}
       </View>
 
+      {/* Muscle group filter */}
       <View style={styles.filtersRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleList}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.muscleList}
+        >
           {muscleGroups.map((item) => (
             <TouchableOpacity key={item} style={[styles.filterChip, selectedMuscle === item && styles.filterChipActive]} onPress={() => setSelectedMuscle(item)}>
               <Text style={[styles.filterChipText, selectedMuscle === item && styles.filterChipTextActive]}>{item}</Text>
@@ -103,11 +149,17 @@ export default function Exercises() {
         </ScrollView>
       </View>
 
+      {/* Equipment and Difficulty filters */}
       <View style={styles.filterTags}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity style={[styles.filterTag, selectedEquipment && styles.filterTagActive]} onPress={() => setSelectedEquipment(selectedEquipment === null ? 'barbell' : selectedEquipment === 'barbell' ? 'dumbbell' : selectedEquipment === 'dumbbell' ? 'cable' : selectedEquipment === 'cable' ? 'machine' : selectedEquipment === 'machine' ? 'bodyweight' : null)}>
-            <Icon name={Icons.dumbbell} size={12} color={selectedEquipment ? '#fff' : '#71717A'} />
+          {/* Equipment dropdown button */}
+          <TouchableOpacity
+            style={[styles.filterTag, selectedEquipment && styles.filterTagActive]}
+            onPress={() => setShowEquipmentPicker(true)}
+          >
+            <Icon name={getEquipmentIcon(selectedEquipment)} size={12} color={selectedEquipment ? '#fff' : '#71717A'} />
             <Text style={[styles.filterTagText, selectedEquipment && styles.filterTagTextActive]}>{selectedEquipment || 'Equipment'}</Text>
+            <Icon name={Icons.chevronDown} size={12} color={selectedEquipment ? '#fff' : '#71717A'} />
           </TouchableOpacity>
           {difficulties.map(d => (
             <TouchableOpacity key={d} style={[styles.filterTag, selectedDifficulty === d && styles.filterTagActive]} onPress={() => setSelectedDifficulty(selectedDifficulty === d ? null : d)}>
@@ -127,32 +179,79 @@ export default function Exercises() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={styles.emptyText}>No exercises found</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.exerciseCard} onPress={() => showExerciseDetails(item)}>
-            <View style={styles.exerciseMain}>
-              <View style={styles.exerciseNameRow}>
-                <Text style={styles.exerciseName}>{item.name}</Text>
-                <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
-                  <Icon name={favorites.has(item.id) ? Icons.heartFilled : Icons.heart} size={20} color={favorites.has(item.id) ? '#EF4444' : '#52525B'} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.exerciseMeta}>
-                <Text style={styles.equipment}>{item.equipment}</Text>
-                <Text style={styles.dot}>•</Text>
-                <Text style={styles.muscleTarget}>{item.muscleGroups.join(', ')}</Text>
-              </View>
-              <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(item.difficulty) + '20' }]}>
-                <Text style={[styles.difficultyText, { color: getDifficultyColor(item.difficulty) }]}>{item.difficulty}</Text>
-              </View>
+        ListHeaderComponent={
+          usedExerciseIds.size > 0 ? (
+            <View style={styles.recentSection}>
+              <Text style={styles.recentTitle}>Recently Used</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentList}>
+                {recentExercises.map(ex => (
+                  <TouchableOpacity key={ex.id} style={styles.recentPill} onPress={() => showExerciseDetails(ex)}>
+                    <Text style={styles.recentPillText}>{ex.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
-            <View style={styles.exerciseDetails}>
-              <View style={styles.setsReps}><Text style={styles.setsRepsValue}>{item.defaultSets}</Text><Text style={styles.setsRepsLabel}>sets</Text></View>
-              <View style={styles.setsReps}><Text style={styles.setsRepsValue}>{item.defaultReps}</Text><Text style={styles.setsRepsLabel}>reps</Text></View>
+          ) : null
+        }
+        ListEmptyComponent={
+            <View style={styles.emptyStateContainer}>
+              <Icon name={Icons.search} size={40} color="#3F3F46" />
+              <Text style={styles.emptyText}>No exercises found</Text>
+              <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
             </View>
-          </TouchableOpacity>
-        )}
+          }
+        renderItem={({ item }) => {
+          const isUsed = usedExerciseIds.has(item.id);
+          return (
+            <TouchableOpacity style={styles.exerciseCard} onPress={() => showExerciseDetails(item)}>
+              <View style={styles.exerciseMain}>
+                <View style={styles.exerciseNameRow}>
+                  <View style={styles.nameContainer}>
+                    <Text style={styles.exerciseName}>{item.name}</Text>
+                    {isUsed && <View style={styles.usedBadge}><Text style={styles.usedBadgeText}>Used</Text></View>}
+                  </View>
+                  <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                    <Icon name={favorites.has(item.id) ? Icons.heartFilled : Icons.heart} size={20} color={favorites.has(item.id) ? '#EF4444' : '#52525B'} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.exerciseMeta}>
+                  <Text style={styles.equipment}>{item.equipment}</Text>
+                  <Text style={styles.dot}>•</Text>
+                  <Text style={styles.muscleTarget}>{item.muscleGroups.join(', ')}</Text>
+                </View>
+                <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(item.difficulty) + '20' }]}>
+                  <Text style={[styles.difficultyText, { color: getDifficultyColor(item.difficulty) }]}>{item.difficulty}</Text>
+                </View>
+              </View>
+              <View style={styles.exerciseDetails}>
+                <View style={styles.setsReps}><Text style={styles.setsRepsValue}>{item.defaultSets}</Text><Text style={styles.setsRepsLabel}>sets</Text></View>
+                <View style={styles.setsReps}><Text style={styles.setsRepsValue}>{item.defaultReps}</Text><Text style={styles.setsRepsLabel}>reps</Text></View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
+
+      {/* Equipment Picker Modal */}
+      <Modal visible={showEquipmentPicker} transparent animationType="fade">
+        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowEquipmentPicker(false)}>
+          <View style={styles.pickerContent}>
+            <Text style={styles.pickerTitle}>Select Equipment</Text>
+            <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+              <TouchableOpacity style={[styles.pickerOption, !selectedEquipment && styles.pickerOptionActive]} onPress={() => handleEquipmentSelect(null)}>
+                <Icon name={Icons.dumbbell} size={20} color={!selectedEquipment ? '#fff' : '#71717A'} />
+                <Text style={[styles.pickerOptionText, !selectedEquipment && styles.pickerOptionTextActive]}>All Equipment</Text>
+              </TouchableOpacity>
+              {equipmentList.map(eq => (
+                <TouchableOpacity key={eq} style={[styles.pickerOption, selectedEquipment === eq && styles.pickerOptionActive]} onPress={() => handleEquipmentSelect(eq)}>
+                  <Icon name={getEquipmentIcon(eq)} size={20} color={selectedEquipment === eq ? '#fff' : '#71717A'} />
+                  <Text style={[styles.pickerOptionText, selectedEquipment === eq && styles.pickerOptionTextActive]}>{eq}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal visible={showAddModal} animationType="slide" presentationStyle="pageSheet">
         <View style={styles.modalContainer}>
@@ -169,7 +268,7 @@ export default function Exercises() {
             <TextInput style={styles.input} placeholder="chest, triceps, shoulders" placeholderTextColor="#52525B" value={newExercise.muscleGroups} onChangeText={(t) => setNewExercise({ ...newExercise, muscleGroups: t })} />
             <Text style={styles.inputLabel}>Equipment</Text>
             <View style={styles.optionRow}>
-              {['barbell', 'dumbbell', 'cable', 'machine', 'bodyweight'].map(eq => (
+              {equipmentList.map(eq => (
                 <TouchableOpacity key={eq} style={[styles.optionChip, newExercise.equipment === eq && styles.optionChipActive]} onPress={() => setNewExercise({ ...newExercise, equipment: eq })}>
                   <Text style={[styles.optionChipText, newExercise.equipment === eq && styles.optionChipTextActive]}>{eq}</Text>
                 </TouchableOpacity>
@@ -238,23 +337,32 @@ const styles = StyleSheet.create({
   addButton: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: '#27272A', gap: 8 },
   searchInput: { flex: 1, paddingVertical: 12, color: '#fff', fontSize: 16 },
+  filtersRow: { marginTop: 12 },
+  muscleList: { paddingHorizontal: 20, paddingVertical: 8, gap: 8 },
+  filterChip: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 20, backgroundColor: '#18181B', borderWidth: 1, borderColor: '#27272A', marginRight: 10, minWidth: 70, alignItems: 'center', justifyContent: 'center' },
+  filterChipActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
+  filterChipText: { fontSize: 14, color: '#71717A', fontWeight: '600' },
+  filterChipTextActive: { color: '#fff' },
   filterTags: { paddingHorizontal: 20, paddingVertical: 8 },
-  filterTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#18181B', marginRight: 8, gap: 4, borderWidth: 1, borderColor: '#27272A' },
+  filterTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, backgroundColor: '#18181B', marginRight: 10, gap: 6, borderWidth: 1, borderColor: '#27272A' },
   filterTagActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
   filterTagText: { fontSize: 12, color: '#71717A' },
   filterTagTextActive: { color: '#fff' },
   clearFilter: { paddingHorizontal: 12, paddingVertical: 6 },
   clearFilterText: { fontSize: 12, color: '#EF4444' },
-  muscleList: { paddingHorizontal: 20, paddingVertical: 8, gap: 8 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#18181B', borderWidth: 1, borderColor: '#27272A', marginRight: 8, minWidth: 60, alignItems: 'center', justifyContent: 'center' },
-  filterChipActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
-  filterChipText: { fontSize: 14, color: '#71717A', fontWeight: '600' },
-  filterChipTextActive: { color: '#fff' },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
+  recentSection: { marginBottom: 16 },
+  recentTitle: { fontSize: 14, color: '#71717A', marginBottom: 8, fontWeight: '600' },
+  recentList: { gap: 8 },
+  recentPill: { backgroundColor: '#27272A', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  recentPillText: { fontSize: 13, color: '#fff' },
   exerciseCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#18181B', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#27272A' },
   exerciseMain: { flex: 1 },
   exerciseNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  nameContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   exerciseName: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  usedBadge: { backgroundColor: '#22C55E30', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  usedBadgeText: { fontSize: 10, color: '#22C55E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   exerciseMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   equipment: { fontSize: 13, color: '#71717A', textTransform: 'capitalize' },
   dot: { color: '#3F3F46', marginHorizontal: 6, fontSize: 13 },
@@ -265,7 +373,17 @@ const styles = StyleSheet.create({
   setsReps: { alignItems: 'center', minWidth: 35 },
   setsRepsValue: { fontSize: 18, fontWeight: '700', color: '#F97316' },
   setsRepsLabel: { fontSize: 11, color: '#71717A' },
-  emptyText: { fontSize: 14, color: '#71717A', textAlign: 'center', padding: 40 },
+  emptyText: { fontSize: 14, color: '#71717A', textAlign: 'center', marginTop: 12 },
+  emptySubtext: { fontSize: 13, color: '#52525B', textAlign: 'center', marginTop: 4 },
+  emptyStateContainer: { alignItems: 'center', padding: 40 },
+  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  pickerContent: { backgroundColor: '#18181B', borderRadius: 16, padding: 20, width: '80%', maxWidth: 300, maxHeight: '60%' },
+  pickerScroll: { maxHeight: 300 },
+  pickerTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: 16, textAlign: 'center' },
+  pickerOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 8, gap: 12 },
+  pickerOptionActive: { backgroundColor: '#F97316' },
+  pickerOptionText: { fontSize: 16, color: '#71717A', textTransform: 'capitalize' },
+  pickerOptionTextActive: { color: '#fff', fontWeight: '600' },
   modalContainer: { flex: 1, backgroundColor: '#0D0D0D' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },

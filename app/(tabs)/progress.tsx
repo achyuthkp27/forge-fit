@@ -49,6 +49,7 @@ export default function Progress() {
       });
     });
     const total = Object.values(muscleGroups).reduce((a, b) => a + b, 0);
+    if (total === 0) return [];
     return Object.entries(muscleGroups)
       .map(([muscle, volume]) => ({ muscle, percentage: Math.round((volume / total) * 100) || 0 }))
       .sort((a, b) => b.percentage - a.percentage);
@@ -76,11 +77,19 @@ export default function Progress() {
 
   const generateHeatmap = () => {
     const days = [];
+    const today = new Date();
+    // Get start of current week (Monday)
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - 27); // 4 weeks ago
+
     for (let i = 27; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const hasWorkout = sessions.some(s => new Date(s.startTime).toDateString() === date.toDateString());
-      days.push({ date, intensity: hasWorkout ? Math.random() * 0.5 + 0.5 : 0 });
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      const daySessions = sessions.filter(s => new Date(s.startTime).toDateString() === date.toDateString());
+      // Calculate intensity based on actual workout volume
+      const totalSets = daySessions.reduce((sum, s) => sum + s.sets.length, 0);
+      const intensity = totalSets > 0 ? Math.min(1, totalSets / 10) : 0;
+      days.push({ date, intensity, dayOfWeek: date.getDay() });
     }
     return days;
   };
@@ -99,6 +108,14 @@ export default function Progress() {
 
   const maxVolume = Math.max(...volumeData.map(v => v.volume)) || 1;
 
+  // Get month/week labels
+  const getMonthLabel = () => {
+    const now = new Date();
+    const fourWeeksAgo = new Date();
+    fourWeeksAgo.setDate(now.getDate() - 27);
+    return `${fourWeeksAgo.toLocaleString('default', { month: 'short' })} - ${now.toLocaleString('default', { month: 'short' })}`;
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#1a1a1a', '#0D0D0D']} style={StyleSheet.absoluteFill} />
@@ -110,10 +127,22 @@ export default function Progress() {
             <Icon name={Icons.calendar} size={20} color="#F97316" />
             <Text style={styles.sectionTitle}>28-Day Activity</Text>
           </View>
-          <View style={styles.heatmap}>
-            {heatmapData.map((day, index) => (
-              <View key={index} style={[styles.heatmapDay, { backgroundColor: getIntensityColor(day.intensity) }]} />
-            ))}
+          <Text style={styles.heatmapLabel}>{getMonthLabel()}</Text>
+          <View style={styles.heatmapContainer}>
+            <View style={styles.dayLabels}>
+              <Text style={styles.dayLabelText}>S</Text>
+              <Text style={styles.dayLabelText}>M</Text>
+              <Text style={styles.dayLabelText}>T</Text>
+              <Text style={styles.dayLabelText}>W</Text>
+              <Text style={styles.dayLabelText}>T</Text>
+              <Text style={styles.dayLabelText}>F</Text>
+              <Text style={styles.dayLabelText}>S</Text>
+            </View>
+            <View style={styles.heatmap}>
+              {heatmapData.map((day, index) => (
+                <View key={index} style={[styles.heatmapDay, { backgroundColor: getIntensityColor(day.intensity) }]} />
+              ))}
+            </View>
           </View>
         </View>
 
@@ -138,9 +167,11 @@ export default function Progress() {
           <View style={styles.chartContainer}>
             {volumeData.map((week, index) => (
               <View key={index} style={styles.barContainer}>
-                <View style={[styles.bar, { height: (week.volume / maxVolume) * 100 }]} />
+                <View style={[styles.barWrapper, { height: 100 }]}>
+                  <View style={[styles.bar, { height: `${(week.volume / maxVolume) * 100}%` }]} />
+                  <Text style={styles.barValue}>{week.volume > 0 ? week.volume.toFixed(1) + 't' : ''}</Text>
+                </View>
                 <Text style={styles.barLabel}>{week.label}</Text>
-                <Text style={styles.barValue}>{week.volume.toFixed(1)}t</Text>
               </View>
             ))}
           </View>
@@ -151,15 +182,23 @@ export default function Progress() {
             <Icon name={Icons.dumbbell} size={20} color="#F97316" />
             <Text style={styles.sectionTitle}>Muscle Balance</Text>
           </View>
-          {muscleBalance.map((item, index) => (
-            <View key={index} style={styles.muscleRow}>
-              <Text style={styles.muscleName}>{item.muscle}</Text>
-              <View style={styles.muscleBar}>
-                <View style={[styles.muscleFill, { width: `${item.percentage}%` }]} />
+          {muscleBalance.length === 0 ? (
+            <Text style={styles.noDataText}>No data yet. Complete workouts to see muscle balance.</Text>
+          ) : (
+            muscleBalance.map((item, index) => (
+              <View key={index} style={styles.muscleRow}>
+                <Text style={styles.muscleName}>{item.muscle}</Text>
+                <View style={styles.muscleBar}>
+                  {item.percentage > 0 ? (
+                    <View style={[styles.muscleFill, { width: `${item.percentage}%` }]} />
+                  ) : (
+                    <Text style={styles.noDataInline}>No data</Text>
+                  )}
+                </View>
+                <Text style={styles.musclePercent}>{item.percentage > 0 ? `${item.percentage}%` : '-'}</Text>
               </View>
-              <Text style={styles.musclePercent}>{item.percentage}%</Text>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         <View style={styles.section}>
@@ -170,9 +209,10 @@ export default function Progress() {
           </TouchableOpacity>
           {showOneRM && (
             <View style={styles.oneRMContainer}>
+              <Text style={styles.oneRMInputLabel}>Enter your weight and reps</Text>
               <View style={styles.oneRMInputs}>
                 <View style={styles.oneRMInputGroup}>
-                  <Text style={styles.inputLabel}>Weight</Text>
+                  <Text style={styles.inputLabelAbove}>Weight (kg)</Text>
                   <TextInput
                     style={styles.oneRMInput}
                     value={oneRMWeight}
@@ -184,7 +224,7 @@ export default function Progress() {
                 </View>
                 <Text style={styles.oneRMX}>×</Text>
                 <View style={styles.oneRMInputGroup}>
-                  <Text style={styles.inputLabel}>Reps</Text>
+                  <Text style={styles.inputLabelAbove}>Reps</Text>
                   <TextInput
                     style={styles.oneRMInput}
                     value={oneRMReps}
@@ -256,7 +296,11 @@ export default function Progress() {
             <Text style={styles.sectionTitle}>Session History</Text>
           </View>
           {sessions.length === 0 ? (
-            <Text style={styles.emptyText}>No sessions yet</Text>
+            <View style={styles.emptyStateContainer}>
+              <Icon name={Icons.activity} size={32} color="#3F3F46" />
+              <Text style={styles.emptyText}>No sessions yet</Text>
+              <Text style={styles.emptySubtext}>Complete workouts to see history</Text>
+            </View>
           ) : (
             sessions.slice(0, 10).map((session, index) => (
               <View key={index} style={styles.historyCard}>
@@ -278,7 +322,11 @@ export default function Progress() {
             <Text style={styles.sectionTitle}>PR Board</Text>
           </View>
           {personalRecords.length === 0 ? (
-            <Text style={styles.emptyText}>No PRs yet</Text>
+            <View style={styles.emptyStateContainer}>
+              <Icon name={Icons.trophy} size={32} color="#3F3F46" />
+              <Text style={styles.emptyText}>No PRs yet</Text>
+              <Text style={styles.emptySubtext}>Set new records during workouts</Text>
+            </View>
           ) : (
             personalRecords.map((pr) => (
               <View key={pr.id} style={styles.prCard}>
@@ -305,9 +353,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 24 },
   section: { marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
-  heatmap: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  heatmapDay: { width: 36, height: 36, borderRadius: 8, borderWidth: 1, borderColor: '#27272A' },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#fff', flex: 1 },
+  heatmapLabel: { fontSize: 12, color: '#71717A', marginBottom: 8, textAlign: 'center' },
+  heatmapContainer: { flexDirection: 'row', alignItems: 'flex-start' },
+  dayLabels: { width: 20, marginRight: 4 },
+  dayLabelText: { fontSize: 10, color: '#52525B', textAlign: 'center', marginBottom: 6 },
+  heatmap: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, flex: 1 },
+  heatmapDay: { width: 40, height: 40, borderRadius: 8, borderWidth: 1, borderColor: '#27272A' },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: { flex: 1, backgroundColor: '#18181B', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#27272A' },
   statValue: { fontSize: 28, fontWeight: '700', color: '#fff', marginTop: 8 },
@@ -319,21 +371,25 @@ const styles = StyleSheet.create({
   prValue: { alignItems: 'flex-end' },
   prWeight: { fontSize: 20, fontWeight: '700', color: '#F97316' },
   prReps: { fontSize: 12, color: '#71717A' },
-  chartContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, backgroundColor: '#18181B', borderRadius: 12, padding: 16, marginBottom: 12 },
+  chartContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 140, backgroundColor: '#18181B', borderRadius: 12, padding: 16, marginBottom: 12 },
   barContainer: { alignItems: 'center', flex: 1 },
+  barWrapper: { alignItems: 'center', justifyContent: 'flex-end' },
   bar: { width: 40, backgroundColor: '#F97316', borderRadius: 4, minHeight: 4 },
-  barLabel: { fontSize: 10, color: '#71717A', marginTop: 4 },
-  barValue: { fontSize: 10, color: '#71717A' },
+  barLabel: { fontSize: 10, color: '#71717A', marginTop: 8 },
+  barValue: { fontSize: 10, color: '#71717A', marginTop: 4, minHeight: 14 },
   muscleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   muscleName: { width: 80, fontSize: 14, color: '#fff', textTransform: 'capitalize' },
-  muscleBar: { flex: 1, height: 8, backgroundColor: '#27272A', borderRadius: 4, marginHorizontal: 8 },
-  muscleFill: { height: 8, backgroundColor: '#F97316', borderRadius: 4 },
+  muscleBar: { flex: 1, height: 8, backgroundColor: '#27272A', borderRadius: 4, marginHorizontal: 8, minWidth: 40 },
+  muscleFill: { height: 8, backgroundColor: '#F97316', borderRadius: 4, minWidth: 4 },
   musclePercent: { width: 40, fontSize: 12, color: '#71717A', textAlign: 'right' },
+  noDataText: { fontSize: 14, color: '#71717A', textAlign: 'center', padding: 20 },
+  noDataInline: { fontSize: 10, color: '#52525B', textAlign: 'center', width: '100%' },
   oneRMContainer: { backgroundColor: '#18181B', borderRadius: 12, padding: 16 },
-  oneRMInputs: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 16 },
+  oneRMInputLabel: { fontSize: 12, color: '#71717A', marginBottom: 16, textAlign: 'center' },
+  oneRMInputs: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 16 },
   oneRMInputGroup: { alignItems: 'center' },
-  inputLabel: { fontSize: 12, color: '#71717A', marginBottom: 4 },
-  oneRMInput: { backgroundColor: '#27272A', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, color: '#fff', fontSize: 18, width: 80, textAlign: 'center' },
+  inputLabelAbove: { fontSize: 12, color: '#71717A', marginBottom: 8 },
+  oneRMInput: { backgroundColor: '#27272A', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12, color: '#fff', fontSize: 18, width: '35%', textAlign: 'center' },
   oneRMX: { fontSize: 18, color: '#71717A', marginTop: 16 },
   oneRMResult: { alignItems: 'center', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#27272A' },
   oneRMLabel: { fontSize: 12, color: '#71717A' },
@@ -349,7 +405,9 @@ const styles = StyleSheet.create({
   weeklyLoadValue: { fontSize: 20, fontWeight: '700', color: '#fff', marginTop: 4 },
   loadUp: { color: '#22C55E' },
   loadDown: { color: '#E24B4A' },
-  emptyText: { fontSize: 14, color: '#71717A', textAlign: 'center', padding: 20 },
+  emptyStateContainer: { alignItems: 'center', padding: 32, backgroundColor: '#18181B', borderRadius: 16, marginTop: 8 },
+  emptyText: { fontSize: 16, color: '#71717A', marginTop: 12 },
+  emptySubtext: { fontSize: 13, color: '#52525B', marginTop: 4, textAlign: 'center' },
   historyCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#18181B', padding: 16, borderRadius: 12, marginBottom: 8 },
   historyInfo: { flex: 1 },
   historyName: { fontSize: 16, fontWeight: '600', color: '#fff' },

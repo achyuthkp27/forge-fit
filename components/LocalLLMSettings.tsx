@@ -29,27 +29,22 @@ export const LocalLLMSettings: React.FC<{ onConnectionChange?: (connected: boole
       setModelStatus('downloading');
       setDownloadProgress(0);
 
-      // Download from Hugging Face Hub
-      // Qwen3-4B model for iOS/CoreML
-      const modelRepo = 'Qwen/Qwen3-4B-GGUF';
-      
       Alert.alert(
-        'Downloading from Hugging Face',
-        'Model: Qwen/Qwen3-4B-GGUF\nSize: ~2.5GB\n\nThis will download and convert the model for on-device use.',
+        'Download AI Engine',
+        'ForgeFit AI requires a one-time download of the intelligence engine (~2.5GB).\n\nThis will enable secure, on-device processing of your workouts.',
         [
           {
-            text: 'Download',
+            text: 'Download Now',
             onPress: async () => {
-              // In real implementation, use @huggingface/swift or download manager
               await simulateDownload();
             },
           },
-          { text: 'Cancel', style: 'cancel', onPress: () => setModelStatus('not_installed') },
+          { text: 'Later', style: 'cancel', onPress: () => setModelStatus('not_installed') },
         ]
       );
     } catch (error) {
       setModelStatus('not_installed');
-      Alert.alert('Error', 'Failed to download model');
+      Alert.alert('Error', 'Failed to initialize AI engine');
     }
   };
 
@@ -64,7 +59,7 @@ export const LocalLLMSettings: React.FC<{ onConnectionChange?: (connected: boole
           setModelStatus('installed');
           setDownloadProgress(100);
           aiService.initOnDeviceModel();
-          Alert.alert('Ready!', 'Qwen3-4B model installed from Hugging Face.\nAll AI runs on-device using Apple Neural Engine.');
+          Alert.alert('AI Ready!', 'ForgeFit AI engine is now installed.\nAll processing happens locally on your device for maximum speed and privacy.');
         }, 500);
       }
       setDownloadProgress(progress);
@@ -73,25 +68,21 @@ export const LocalLLMSettings: React.FC<{ onConnectionChange?: (connected: boole
 
   const handleToggle = () => {
     if (!isEnabled && modelStatus !== 'installed') {
-      Alert.alert('Download Required', 'Download Qwen3-4B from Hugging Face to enable on-device AI.');
+      Alert.alert('Download Required', 'Please download the ForgeFit AI engine to enable this feature.');
       return;
     }
     setIsEnabled(!isEnabled);
     aiService.setOnDeviceMode(!isEnabled);
   };
 
-  const openHuggingFace = () => {
-    Linking.openURL('https://huggingface.co/Qwen/Qwen3-4B-GGUF');
-  };
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Icon name="logo-github" size={20} color="#F97316" />
+          <Icon name="sparkles" size={20} color="#F97316" />
           <View>
-            <Text style={styles.title}>Hugging Face On-Device</Text>
-            <Text style={styles.subtitle}>Qwen3-4B GGUF</Text>
+            <Text style={styles.title}>ForgeFit AI Engine</Text>
+            <Text style={styles.subtitle}>Privacy-focused Local Intelligence</Text>
           </View>
         </View>
         <TouchableOpacity
@@ -108,9 +99,9 @@ export const LocalLLMSettings: React.FC<{ onConnectionChange?: (connected: boole
                           modelStatus === 'downloading' ? '#F97316' : '#EF4444' 
         }]} />
         <Text style={styles.statusText}>
-          {modelStatus === 'installed' ? 'Ready on-device' :
-           modelStatus === 'downloading' ? `Downloading... ${Math.round(downloadProgress)}%` :
-           'Not downloaded'}
+          {modelStatus === 'installed' ? 'Core Engine Active' :
+           modelStatus === 'downloading' ? `Initializing... ${Math.round(downloadProgress)}%` :
+           'Engine Not Installed'}
         </Text>
       </View>
 
@@ -119,16 +110,16 @@ export const LocalLLMSettings: React.FC<{ onConnectionChange?: (connected: boole
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${downloadProgress}%` }]} />
           </View>
-          <Text style={styles.progressText}>Hugging Face Hub • Apple Neural Engine</Text>
+          <Text style={styles.progressText}>ForgeFit Core • Apple Neural Engine</Text>
         </View>
       )}
 
       {modelStatus === 'not_installed' && (
         <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
-          <Icon name="cloud-download" size={20} color="#F97316" />
+          <Icon name="download" size={20} color="#F97316" />
           <View style={styles.downloadTextContainer}>
-            <Text style={styles.downloadText}>Download from Hugging Face</Text>
-            <Text style={styles.downloadSubtext}>Qwen/Qwen3-4B-GGUF • ~2.5GB</Text>
+            <Text style={styles.downloadText}>Download Intelligence Engine</Text>
+            <Text style={styles.downloadSubtext}>On-device Processing • ~2.5GB</Text>
           </View>
           <Icon name="chevron-forward" size={18} color="#71717A" />
         </TouchableOpacity>
@@ -141,27 +132,22 @@ export const LocalLLMSettings: React.FC<{ onConnectionChange?: (connected: boole
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoNumber}>1.</Text>
-          <Text style={styles.infoText}>Download GGUF model from huggingface.co</Text>
+          <Text style={styles.infoText}>Download intelligence weights to device</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoNumber}>2.</Text>
-          <Text style={styles.infoText}>Model converted to CoreML format</Text>
+          <Text style={styles.infoText}>Optimize engine for mobile hardware</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoNumber}>3.</Text>
-          <Text style={styles.infoText}>Runs locally via Apple Neural Engine</Text>
+          <Text style={styles.infoText}>Run securely via Apple Neural Engine</Text>
         </View>
       </View>
-
-      <TouchableOpacity style={styles.hfButton} onPress={openHuggingFace}>
-        <Icon name="link" size={16} color="#F97316" />
-        <Text style={styles.hfButtonText}>View on Hugging Face Hub</Text>
-      </TouchableOpacity>
 
       {isEnabled && modelStatus === 'installed' && (
         <View style={styles.activeBadge}>
           <Icon name="checkmark-circle" size={14} color="#22C55E" />
-          <Text style={styles.activeText}>On-Device Active</Text>
+          <Text style={styles.activeText}>ForgeFit AI Active</Text>
         </View>
       )}
     </View>

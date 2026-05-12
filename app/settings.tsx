@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Share, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Share, Platform, TextInput, Modal } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { useWorkoutStore } from '../stores/workoutStore';
 import { Icon, Icons } from '../components/Icon';
@@ -11,6 +11,8 @@ export default function Settings() {
   const [notifications, setNotifications] = useState({ workoutReminders: true, prAlerts: true, weeklySummary: false });
   const [isExporting, setIsExporting] = useState(false);
   const [localLLMConnected, setLocalLLMConnected] = useState(false);
+  const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [newGoalText, setNewGoalText] = useState('');
 
   const handleExportData = async () => {
     setIsExporting(true);
@@ -50,10 +52,6 @@ export default function Settings() {
   };
 
   const toggleNotification = (key: keyof typeof notifications) => {
-    setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  toggleNotification = (key: keyof typeof notifications) => {
     setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -157,7 +155,7 @@ export default function Settings() {
                 </TouchableOpacity>
               </View>
             ))}
-            <TouchableOpacity style={styles.addGoalButton} onPress={() => Alert.prompt?.('Add Goal', 'Enter your fitness goal', (text) => { if (text) updateSettings({ goals: [...settings.goals, text] }); })}>
+            <TouchableOpacity style={styles.addGoalButton} onPress={() => setShowAddGoalModal(true)}>
               <Icon name={Icons.plus} size={16} color="#F97316" />
               <Text style={styles.addGoalText}>Add Goal</Text>
             </TouchableOpacity>
@@ -182,10 +180,10 @@ export default function Settings() {
             <Text style={styles.menuText}>Export Data</Text>
             <Icon name={Icons.chevronRight} size={16} color="#52525B" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Import Data', 'Import functionality coming soon')}>
-            <Icon name={Icons.upload} size={20} color="#A1A1AA" />
-            <Text style={styles.menuText}>Import Data</Text>
-            <Icon name={Icons.chevronRight} size={16} color="#52525B" />
+          <TouchableOpacity style={[styles.menuItem, styles.disabledItem]} disabled>
+            <Icon name={Icons.upload} size={20} color="#52525B" />
+            <Text style={styles.disabledText}>Import Data</Text>
+            <Text style={styles.comingSoon}>Coming Soon</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.menuItem, styles.dangerItem]} onPress={handleClearHistory}>
             <Icon name={Icons.trash} size={20} color="#EF4444" />
@@ -210,6 +208,31 @@ export default function Settings() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Add Goal Modal */}
+      <Modal visible={showAddGoalModal} transparent animationType="fade">
+        <TouchableOpacity style={styles.goalModalOverlay} activeOpacity={1} onPress={() => setShowAddGoalModal(false)}>
+          <View style={styles.goalModalContent} onStartShouldSetResponder={() => true}>
+            <Text style={styles.goalModalTitle}>Add Goal</Text>
+            <TextInput
+              style={styles.goalModalInput}
+              placeholder="Enter your fitness goal"
+              placeholderTextColor="#52525B"
+              value={newGoalText}
+              onChangeText={setNewGoalText}
+              autoFocus
+            />
+            <View style={styles.goalModalActions}>
+              <TouchableOpacity style={styles.goalModalCancel} onPress={() => { setShowAddGoalModal(false); setNewGoalText(''); }}>
+                <Text style={styles.goalModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.goalModalSave} onPress={() => { if (newGoalText.trim()) { updateSettings({ goals: [...settings.goals, newGoalText.trim()] }); setShowAddGoalModal(false); setNewGoalText(''); } }}>
+                <Text style={styles.goalModalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -218,9 +241,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D0D0D' },
   scrollContent: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 100 },
   title: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 24 },
-  section: { marginBottom: 24 },
+  section: { marginBottom: 28 },
   sectionTitle: { fontSize: 14, fontWeight: '600', color: '#71717A', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
-  profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', padding: 16, borderRadius: 16, gap: 16, borderWidth: 1, borderColor: '#27272A' },
+  profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', padding: 20, borderRadius: 16, gap: 16, borderWidth: 1, borderColor: '#27272A' },
   avatarPlaceholder: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#F97316', justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 20, fontWeight: '700', color: '#fff' },
   profileInfo: { flex: 1 },
@@ -246,16 +269,28 @@ const styles = StyleSheet.create({
   expText: { fontSize: 14, color: '#71717A', fontWeight: '500' },
   expTextActive: { color: '#fff' },
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', padding: 16, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#27272A', gap: 12 },
+  disabledItem: { opacity: 0.5 },
+  disabledText: { flex: 1, fontSize: 16, color: '#52525B' },
+  comingSoon: { fontSize: 12, color: '#71717A', backgroundColor: '#27272A', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   menuText: { flex: 1, fontSize: 16, color: '#fff' },
   dangerItem: { borderColor: '#EF444430' },
   dangerText: { flex: 1, fontSize: 16, color: '#EF4444' },
   aboutInfo: { backgroundColor: '#18181B', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#27272A' },
   aboutRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   aboutText: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  versionBadge: { fontSize: 12, color: '#F97316', backgroundColor: '#F9731620', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  versionBadge: { fontSize: 12, color: '#F97316', backgroundColor: '#F9731620', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, fontWeight: '600' },
   aboutSubtext: { fontSize: 13, color: '#71717A', marginBottom: 16 },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#27272A', paddingTop: 12, marginTop: 8 },
   statItem: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: 20, fontWeight: '700', color: '#F97316' },
   statLabel: { fontSize: 12, color: '#71717A', marginTop: 2 },
+  goalModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 40 },
+  goalModalContent: { backgroundColor: '#18181B', borderRadius: 20, padding: 24, width: '100%', borderWidth: 1, borderColor: '#27272A' },
+  goalModalTitle: { fontSize: 20, fontWeight: '600', color: '#fff', marginBottom: 16, textAlign: 'center' },
+  goalModalInput: { backgroundColor: '#27272A', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, color: '#fff', fontSize: 16, marginBottom: 20, borderWidth: 1, borderColor: '#3F3F46' },
+  goalModalActions: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  goalModalCancel: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#27272A', alignItems: 'center' },
+  goalModalCancelText: { fontSize: 16, color: '#71717A', fontWeight: '600' },
+  goalModalSave: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center' },
+  goalModalSaveText: { fontSize: 16, color: '#fff', fontWeight: '600' },
 });

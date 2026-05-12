@@ -9,8 +9,11 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function Workouts() {
   const router = useRouter();
-  const { workouts, sessions, startSession, suggestedWorkout } = useWorkoutStore();
+  const { workouts, sessions, startSession, suggestedWorkout, addWorkout } = useWorkoutStore();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showWorkoutOptions, setShowWorkoutOptions] = useState(false);
+  const [selectedWorkoutForOptions, setSelectedWorkoutForOptions] = useState<any>(null);
+  const [selectedDayForSchedule, setSelectedDayForSchedule] = useState<string | null>(null);
   const [weeklySchedule, setWeeklySchedule] = useState<Record<string, string | null>>({
     Mon: null, Tue: null, Wed: null, Thu: null, Fri: null, Sat: null, Sun: null,
   });
@@ -27,6 +30,47 @@ export default function Workouts() {
 
   const handleCreateNew = () => {
     router.push('/workout-builder');
+  };
+
+  const handleCopyWorkout = (workout: any) => {
+    const copy = {
+      ...workout,
+      id: Date.now().toString(),
+      name: `${workout.name} (Copy)`,
+      createdAt: new Date(),
+    };
+    addWorkout(copy);
+    setShowWorkoutOptions(false);
+    setSelectedWorkoutForOptions(null);
+  };
+
+  const handleDeleteWorkout = (workout: any) => {
+    Alert.alert(
+      'Delete Workout',
+      `Are you sure you want to delete "${workout.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            useWorkoutStore.getState().deleteWorkout(workout.id);
+            setShowWorkoutOptions(false);
+            setSelectedWorkoutForOptions(null);
+          }
+        },
+      ]
+    );
+  };
+
+  const handleLongPressWorkout = (workout: any) => {
+    setSelectedWorkoutForOptions(workout);
+    setShowWorkoutOptions(true);
+  };
+
+  const handleSelectDayForSchedule = (day: string) => {
+    setSelectedDayForSchedule(day);
+    setShowScheduleModal(true);
   };
 
   const getScheduledWorkout = (day: string) => {
@@ -71,14 +115,14 @@ export default function Workouts() {
               const workout = getScheduledWorkout(day);
               const isToday = new Date().getDay() === index + 1;
               return (
-                <TouchableOpacity key={day} style={[styles.dayColumn, isToday && styles.dayColumnToday]} onPress={() => setShowScheduleModal(true)}>
+                <TouchableOpacity key={day} style={[styles.dayColumn, isToday && styles.dayColumnToday]} onPress={() => handleSelectDayForSchedule(day)}>
                   <Text style={[styles.dayLabel, isToday && styles.dayLabelToday]}>{day}</Text>
                   {workout ? (
                     <View style={[styles.dayWorkout, isToday && styles.dayWorkoutToday]}>
-                      <Text style={styles.dayWorkoutText} numberOfLines={1}>{workout.name}</Text>
+                      <Text style={styles.dayWorkoutText} numberOfLines={2} ellipsizeMode="tail">{workout.name}</Text>
                     </View>
                   ) : (
-                    <View style={styles.dayEmpty}><Text style={styles.dayEmptyText}>+</Text></View>
+                    <View style={styles.dayEmpty}><Icon name={Icons.plus} size={14} color="#52525B" /></View>
                   )}
                 </TouchableOpacity>
               );
@@ -90,9 +134,15 @@ export default function Workouts() {
           <Text style={styles.sectionTitle}>My Workouts ({workouts.length})</Text>
           {workouts.length === 0 ? (
             <View style={styles.emptyState}>
-              <Icon name={Icons.dumbbell} size={48} color="#3F3F46" />
+              <View style={styles.emptyIconContainer}>
+                <Icon name={Icons.dumbbell} size={48} color="#3F3F46" />
+              </View>
               <Text style={styles.emptyTitle}>No Workouts Yet</Text>
               <Text style={styles.emptyDesc}>Create your first workout to get started</Text>
+              <TouchableOpacity style={styles.emptyCTA} onPress={handleCreateNew}>
+                <Icon name={Icons.plus} size={18} color="#fff" />
+                <Text style={styles.emptyCTAText}>Create Workout</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             workouts.map((workout) => {
@@ -100,7 +150,7 @@ export default function Workouts() {
               const daysSince = lastSession ? Math.floor((Date.now() - new Date(lastSession.startTime).getTime()) / (1000 * 60 * 60 * 24)) : null;
               return (
                 <View key={workout.id} style={styles.workoutCard}>
-                  <TouchableOpacity style={styles.workoutContent} onPress={() => handleStartWorkout(workout)}>
+                  <TouchableOpacity style={styles.workoutContent} onPress={() => handleStartWorkout(workout)} onLongPress={() => handleLongPressWorkout(workout)}>
                     <View style={styles.workoutInfo}>
                       <Text style={styles.workoutName}>{workout.name}</Text>
                       <View style={styles.workoutMeta}>
@@ -129,38 +179,61 @@ export default function Workouts() {
 
       <TouchableOpacity style={styles.fab} onPress={handleCreateNew}>
         <LinearGradient colors={['#F97316', '#EA580C']} style={StyleSheet.absoluteFill} />
-        <Icon name={Icons.plus} size={28} color="#0D0D0D" />
+        <Icon name={Icons.plus} size={32} color="#0D0D0D" />
       </TouchableOpacity>
 
       <Modal visible={showScheduleModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Weekly Schedule</Text>
-              <TouchableOpacity onPress={() => setShowScheduleModal(false)}>
+              <Text style={styles.modalTitle}>{selectedDayForSchedule ? `${selectedDayForSchedule} - Select Workout` : 'Weekly Schedule'}</Text>
+              <TouchableOpacity onPress={() => { setShowScheduleModal(false); setSelectedDayForSchedule(null); }}>
                 <Icon name={Icons.x} size={24} color="#71717A" />
               </TouchableOpacity>
             </View>
             <ScrollView>
-              {WEEKDAYS.map((day) => (
-                <View key={day} style={styles.scheduleRow}>
-                  <View style={styles.scheduleDay}>
-                    <Text style={styles.scheduleDayText}>{day}</Text>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => { setWeeklySchedule(prev => ({ ...prev, [selectedDayForSchedule!]: null })); setShowScheduleModal(false); setSelectedDayForSchedule(null); }}
+              >
+                <Icon name={Icons.x} size={20} color="#EF4444" />
+                <Text style={styles.optionText}>Rest Day (None)</Text>
+              </TouchableOpacity>
+
+              {workouts.map(workout => (
+                <TouchableOpacity
+                  key={workout.id}
+                  style={[styles.optionItem, weeklySchedule[selectedDayForSchedule || ''] === workout.id && styles.optionItemActive]}
+                  onPress={() => { setWeeklySchedule(prev => ({ ...prev, [selectedDayForSchedule!]: workout.id })); setShowScheduleModal(false); setSelectedDayForSchedule(null); }}
+                >
+                  <View style={styles.optionContent}>
+                    <Text style={styles.optionText}>{workout.name}</Text>
+                    <Text style={styles.optionSubtext}>{workout.type} • {workout.exercises.length} exercises</Text>
                   </View>
-                  <TouchableOpacity
-                    style={[styles.scheduleWorkoutBtn, weeklySchedule[day] && styles.scheduleWorkoutBtnActive]}
-                    onPress={() => {}}
-                  >
-                    <Text style={[styles.scheduleWorkoutBtnText, weeklySchedule[day] && styles.scheduleWorkoutBtnTextActive]}>
-                      {getScheduledWorkout(day)?.name || 'Tap to assign'}
-                    </Text>
-                    <Icon name={Icons.chevronRight} size={16} color="#52525B" />
-                  </TouchableOpacity>
-                </View>
+                  {weeklySchedule[selectedDayForSchedule || ''] === workout.id && (
+                    <Icon name={Icons.checkCircle} size={20} color="#22C55E" />
+                  )}
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      <Modal visible={showWorkoutOptions} transparent animationType="fade">
+        <TouchableOpacity style={styles.optionsOverlay} activeOpacity={1} onPress={() => { setShowWorkoutOptions(false); setSelectedWorkoutForOptions(null); }}>
+          <View style={styles.optionsContent}>
+            <Text style={styles.optionsTitle}>{selectedWorkoutForOptions?.name}</Text>
+            <TouchableOpacity style={styles.optionBtn} onPress={() => handleCopyWorkout(selectedWorkoutForOptions)}>
+              <Icon name={Icons.copy} size={20} color="#F97316" />
+              <Text style={styles.optionBtnText}>Duplicate</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.optionBtn} onPress={() => selectedWorkoutForOptions && handleDeleteWorkout(selectedWorkoutForOptions)}>
+              <Icon name={Icons.trash} size={20} color="#EF4444" />
+              <Text style={styles.optionBtnTextDanger}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -185,14 +258,17 @@ const styles = StyleSheet.create({
   dayColumnToday: {},
   dayLabel: { fontSize: 11, color: '#71717A', marginBottom: 8, fontWeight: '600' },
   dayLabelToday: { color: '#F97316' },
-  dayWorkout: { backgroundColor: '#27272A', paddingHorizontal: 6, paddingVertical: 8, borderRadius: 8, width: '100%', minHeight: 32, justifyContent: 'center', alignItems: 'center' },
+  dayWorkout: { backgroundColor: '#27272A', paddingHorizontal: 6, paddingVertical: 8, borderRadius: 8, width: '100%', minHeight: 40, justifyContent: 'center', alignItems: 'center' },
   dayWorkoutToday: { backgroundColor: '#F97316' },
-  dayWorkoutText: { fontSize: 10, color: '#fff', fontWeight: '600', textAlign: 'center' },
-  dayEmpty: { width: '100%', minHeight: 32, justifyContent: 'center', alignItems: 'center' },
-  dayEmptyText: { fontSize: 16, color: '#3F3F46' },
-  emptyState: { alignItems: 'center', padding: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginTop: 16 },
-  emptyDesc: { fontSize: 14, color: '#71717A', marginTop: 8 },
+  dayWorkoutText: { fontSize: 11, color: '#fff', fontWeight: '600', textAlign: 'center' },
+  dayEmpty: { width: '100%', minHeight: 40, justifyContent: 'center', alignItems: 'center' },
+  dayEmptyText: { fontSize: 14, color: '#52525B' },
+  emptyState: { alignItems: 'center', padding: 40, backgroundColor: '#18181B', borderRadius: 16, borderWidth: 1, borderColor: '#27272A' },
+  emptyIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#27272A', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: 4 },
+  emptyDesc: { fontSize: 14, color: '#71717A', marginBottom: 20 },
+  emptyCTA: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F97316', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24 },
+  emptyCTAText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   workoutCard: { backgroundColor: '#18181B', borderRadius: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#27272A' },
   workoutContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   workoutInfo: { flex: 1 },
@@ -207,7 +283,7 @@ const styles = StyleSheet.create({
   exerciseCount: { fontSize: 13, color: '#71717A' },
   lastSession: { fontSize: 12, color: '#52525B', marginTop: 4 },
   startButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(249, 115, 22, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  fab: { position: 'absolute', bottom: 100, right: 20, width: 56, height: 56, borderRadius: 28, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', shadowColor: '#F97316', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  fab: { position: 'absolute', bottom: 30, right: 24, width: 64, height: 64, borderRadius: 32, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', shadowColor: '#F97316', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 10 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#18181B', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -219,4 +295,15 @@ const styles = StyleSheet.create({
   scheduleWorkoutBtnActive: { backgroundColor: 'rgba(249, 115, 22, 0.1)', borderWidth: 1, borderColor: '#F97316' },
   scheduleWorkoutBtnText: { fontSize: 14, color: '#71717A' },
   scheduleWorkoutBtnTextActive: { color: '#F97316', fontWeight: '500' },
+  optionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#27272A', gap: 12 },
+  optionItemActive: { backgroundColor: 'rgba(249, 115, 22, 0.1)' },
+  optionContent: { flex: 1 },
+  optionText: { fontSize: 16, color: '#fff', fontWeight: '500' },
+  optionSubtext: { fontSize: 13, color: '#71717A', marginTop: 2 },
+  optionsOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 40 },
+  optionsContent: { backgroundColor: '#18181B', borderRadius: 20, padding: 24, width: '100%', borderWidth: 1, borderColor: '#27272A' },
+  optionsTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: 20, textAlign: 'center' },
+  optionBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#27272A' },
+  optionBtnText: { fontSize: 16, color: '#F97316', fontWeight: '500' },
+  optionBtnTextDanger: { fontSize: 16, color: '#EF4444', fontWeight: '500' },
 });

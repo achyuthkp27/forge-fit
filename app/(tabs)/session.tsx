@@ -154,11 +154,11 @@ export default function LiveSession() {
 
       <View style={styles.exerciseNav}>
         <TouchableOpacity onPress={prevExercise} disabled={currentExerciseIndex === 0}>
-          <Icon name={Icons.chevronDown} size={20} color={currentExerciseIndex === 0 ? '#3F3F46' : '#71717A'} />
+          <Icon name={Icons.chevronLeft} size={20} color={currentExerciseIndex === 0 ? '#3F3F46' : '#71717A'} />
         </TouchableOpacity>
         <Text style={styles.exerciseCount}>{currentExerciseIndex + 1} / {currentWorkout.exercises.length}</Text>
         <TouchableOpacity onPress={nextExercise} disabled={currentExerciseIndex === currentWorkout.exercises.length - 1}>
-          <Icon name={Icons.chevronDown} size={20} color={currentExerciseIndex === currentWorkout.exercises.length - 1 ? '#3F3F46' : '#71717A'} />
+          <Icon name={Icons.chevronRight} size={20} color={currentExerciseIndex === currentWorkout.exercises.length - 1 ? '#3F3F46' : '#71717A'} />
         </TouchableOpacity>
       </View>
 
@@ -330,9 +330,9 @@ const styles = StyleSheet.create({
   plateBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   plateText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   platesEmpty: { fontSize: 14, color: '#71717A' },
-  barVisual: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
-  barEnd: { width: 20, height: 40, backgroundColor: '#71717A', borderRadius: 2 },
-  barMiddle: { height: 8, backgroundColor: '#71717A', flex: 1 },
+  barVisual: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 4 },
+  barEnd: { width: 30, height: 60, backgroundColor: '#52525B', borderRadius: 4 },
+  barMiddle: { height: 12, backgroundColor: '#71717A', flex: 1, borderRadius: 2 },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#27272A' },
   setRowCompleted: { opacity: 0.6 },
   setNumber: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#27272A', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   setInputs: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   inputLabel: { fontSize: 12, color: '#71717A' },
-  setInput: { backgroundColor: '#27272A', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: '#fff', fontSize: 16, width: 60, textAlign: 'center' },
+  setInput: { backgroundColor: '#27272A', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: '#fff', fontSize: 16, width: 70, textAlign: 'center' },
   setInputCompleted: { color: '#71717A' },
   inputSep: { fontSize: 16, color: '#71717A' },
   completeBtn: { padding: 8 },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon, Icons } from '../components/Icon';
 import { useWorkoutStore } from '../stores/workoutStore';
@@ -9,6 +10,7 @@ const { width } = Dimensions.get('window');
 
 export default function WorkoutScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     activeSession, currentWorkout, currentExerciseIndex,
     nextExercise, prevExercise, logSet, endSession
@@ -17,10 +19,13 @@ export default function WorkoutScreen() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentWeight, setCurrentWeight] = useState(20);
   const [currentReps, setCurrentReps] = useState(10);
+  const [prevWeight, setPrevWeight] = useState(20);
+  const [prevReps, setPrevReps] = useState(10);
   const [currentSet, setCurrentSet] = useState(1);
   const [showRest, setShowRest] = useState(false);
   const [restTime, setRestTime] = useState(90);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showPRCelebration, setShowPRCelebration] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const restRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,16 +63,29 @@ export default function WorkoutScreen() {
   const handleLogSet = async () => {
     if (!exercise) return;
     await logSet(exercise.exerciseId, currentSet, currentReps, currentWeight);
+    setPrevWeight(currentWeight);
+    setPrevReps(currentReps);
     setShowRest(true);
     setRestTime(90);
+    // Show PR celebration on first set of exercise
+    if (currentSet === 1) {
+      setShowPRCelebration(true);
+      setTimeout(() => setShowPRCelebration(false), 1500);
+    }
   };
 
   const handleNextSet = () => {
     if (currentSet < (exercise?.sets || 4)) {
       setCurrentSet(s => s + 1);
+      // Carry forward previous set values
+      setCurrentWeight(prevWeight);
+      setCurrentReps(prevReps);
     } else if (currentExerciseIndex < totalExercises - 1) {
       nextExercise();
       setCurrentSet(1);
+      // Reset to defaults when moving to new exercise
+      setCurrentWeight(20);
+      setCurrentReps(10);
     } else {
       handleFinish();
     }
@@ -127,11 +145,22 @@ export default function WorkoutScreen() {
       {/* Rest overlay */}
       {showRest && (
         <TouchableOpacity style={restStyles.overlay} activeOpacity={1} onPress={() => setShowRest(false)}>
-          <LinearGradient colors={['#F97316', '#EA580C']} style={restStyles.gradient} />
-          <Text style={restStyles.label}>REST</Text>
-          <Text style={restStyles.time}>{restTime}</Text>
-          <Text style={restStyles.hint}>Tap to skip</Text>
+          <View style={restStyles.restContainer}>
+            <LinearGradient colors={['#F97316', '#EA580C']} style={restStyles.gradient} />
+            <Text style={restStyles.label}>REST</Text>
+            <Text style={restStyles.time}>{restTime}</Text>
+            <Text style={restStyles.hint}>Tap to skip</Text>
+          </View>
         </TouchableOpacity>
+      )}
+
+      {/* PR Celebration */}
+      {showPRCelebration && (
+        <View style={prStyles.overlay}>
+          <LinearGradient colors={['#22C55E', '#16A34A']} style={prStyles.gradient} />
+          <Icon name={Icons.checkCircle} size={80} color="#fff" />
+          <Text style={prStyles.text}>Great Set!</Text>
+        </View>
       )}
 
       {/* Header */}
@@ -180,11 +209,11 @@ export default function WorkoutScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Weight (kg)</Text>
           <View style={styles.inputBox}>
-            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentWeight(w => Math.max(0, w - 2.5))}>
+            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentWeight(w => Math.max(0, w - 2.5))} activeOpacity={0.7}>
               <Text style={styles.inputBtnText}>-</Text>
             </TouchableOpacity>
             <Text style={styles.inputValue}>{currentWeight}</Text>
-            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentWeight(w => w + 2.5)}>
+            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentWeight(w => w + 2.5)} activeOpacity={0.7}>
               <Text style={styles.inputBtnText}>+</Text>
             </TouchableOpacity>
           </View>
@@ -192,11 +221,11 @@ export default function WorkoutScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Reps</Text>
           <View style={styles.inputBox}>
-            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentReps(r => Math.max(1, r - 1))}>
+            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentReps(r => Math.max(1, r - 1))} activeOpacity={0.7}>
               <Text style={styles.inputBtnText}>-</Text>
             </TouchableOpacity>
             <Text style={styles.inputValue}>{currentReps}</Text>
-            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentReps(r => r + 1)}>
+            <TouchableOpacity style={styles.inputBtn} onPress={() => setCurrentReps(r => r + 1)} activeOpacity={0.7}>
               <Text style={styles.inputBtnText}>+</Text>
             </TouchableOpacity>
           </View>
@@ -204,13 +233,13 @@ export default function WorkoutScreen() {
       </View>
 
       {/* LOG SET button */}
-      <TouchableOpacity style={styles.logButton} onPress={handleLogSet}>
+      <TouchableOpacity style={styles.logButton} onPress={handleLogSet} activeOpacity={0.8}>
         <LinearGradient colors={['#22C55E', '#16A34A']} style={StyleSheet.absoluteFill} />
         <Text style={styles.logButtonText}>LOG SET</Text>
       </TouchableOpacity>
 
       {/* Next/Finish button */}
-      <TouchableOpacity style={styles.nextButton} onPress={handleNextSet}>
+      <TouchableOpacity style={styles.nextButton} onPress={handleNextSet} activeOpacity={0.7}>
         <Text style={styles.nextButtonText}>
           {currentSet < (exercise?.sets || 4) ? 'Next Set →' :
            currentExerciseIndex < totalExercises - 1 ? 'Next Exercise →' : 'Finish Workout'}
@@ -245,7 +274,7 @@ const styles = StyleSheet.create({
   noWorkoutDesc: { fontSize: 16, color: '#71717A', textAlign: 'center', marginTop: 12 },
   goBackBtn: { marginTop: 30, paddingHorizontal: 30, paddingVertical: 14, backgroundColor: '#F97316', borderRadius: 25 },
   goBackText: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12 },
   headerCenter: { alignItems: 'center' },
   workoutTitle: { fontSize: 16, fontWeight: '600', color: '#fff' },
   timer: { fontSize: 24, fontWeight: '700', color: '#F97316', marginTop: 4 },
@@ -265,15 +294,15 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 16 },
   inputGroup: { flex: 1 },
   inputLabel: { fontSize: 14, color: '#71717A', marginBottom: 8 },
-  inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', borderRadius: 16, padding: 4 },
-  inputBtn: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#27272A', justifyContent: 'center', alignItems: 'center' },
-  inputBtnText: { fontSize: 24, color: '#F97316', fontWeight: '600' },
+  inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', borderRadius: 16, padding: 6 },
+  inputBtn: { width: 56, height: 56, borderRadius: 14, backgroundColor: '#27272A', justifyContent: 'center', alignItems: 'center' },
+  inputBtnText: { fontSize: 28, color: '#F97316', fontWeight: '600' },
   inputValue: { flex: 1, fontSize: 32, fontWeight: '700', color: '#fff', textAlign: 'center' },
   logButton: { marginHorizontal: 20, marginTop: 24, height: 70, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   logButtonText: { fontSize: 22, fontWeight: '700', color: '#fff' },
   nextButton: { alignItems: 'center', paddingVertical: 16 },
   nextButtonText: { fontSize: 16, color: '#F97316', fontWeight: '600' },
-  exerciseList: { position: 'absolute', bottom: 40, left: 0, right: 0 },
+  exerciseList: { position: 'absolute', bottom: 20, left: 0, right: 0 },
   exerciseListContent: { paddingHorizontal: 20, gap: 10, justifyContent: 'center' },
   exercisePill: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#18181B', borderRadius: 16, borderWidth: 1, borderColor: '#27272A' },
   exercisePillActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
@@ -288,9 +317,16 @@ const styles = StyleSheet.create({
 });
 
 const restStyles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 100 },
-  gradient: { ...StyleSheet.absoluteFillObject },
+  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', zIndex: 100 },
+  restContainer: { height: '50%', justifyContent: 'center', alignItems: 'center', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  gradient: { ...StyleSheet.absoluteFillObject, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   label: { fontSize: 24, color: '#fff', opacity: 0.8 },
-  time: { fontSize: 100, fontWeight: '700', color: '#fff' },
+  time: { fontSize: 80, fontWeight: '700', color: '#fff' },
   hint: { fontSize: 18, color: '#fff', opacity: 0.6, marginTop: 20 },
+});
+
+const prStyles = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 200 },
+  gradient: { ...StyleSheet.absoluteFillObject },
+  text: { fontSize: 28, fontWeight: '700', color: '#fff', marginTop: 16 },
 });

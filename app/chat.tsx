@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Speech from 'expo-speech';
@@ -29,6 +29,7 @@ export default function ChatScreen() {
   const [showMoodCard, setShowMoodCard] = useState(false);
   const [weeklyStats, setWeeklyStats] = useState<any>(null);
   const [isListening, setIsListening] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
   const { messages, addMessage, isLoading, setLoading, activeSession, logSet, addPersonalRecord, setSuggestedWorkout: saveSuggestedWorkout, endSession, workouts, startSession } = useWorkoutStore();
   const { getSuggestion } = useWorkoutSuggestion();
@@ -130,8 +131,6 @@ export default function ChatScreen() {
           }
         }
       }
-
-      Speech.speak(response.message, { language: 'en', pitch: 1.0, rate: 0.9 });
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -227,10 +226,10 @@ export default function ChatScreen() {
       addMessage({
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Voice input is powered by your device's speech recognition. Try speaking naturally and I'll understand! For now, type your message.",
+        content: "🎤 Voice input is coming soon! For now, type your message and I'll understand. You can also use the quick action buttons below for common commands.",
         timestamp: new Date(),
       });
-    }, 2000);
+    }, 1500);
   };
 
   const quickActions = [
@@ -239,13 +238,34 @@ export default function ChatScreen() {
     { label: 'Track PR', action: () => setInputText('New PR 100kg on bench') },
   ];
 
+  const toggleSpeaking = (messageId: string, content: string) => {
+    if (speakingMessageId === messageId) {
+      Speech.stop();
+      setSpeakingMessageId(null);
+    } else {
+      Speech.stop();
+      Speech.speak(content, { language: 'en', pitch: 1.0, rate: 0.9, onDone: () => setSpeakingMessageId(null), onStopped: () => setSpeakingMessageId(null) });
+      setSpeakingMessageId(messageId);
+    }
+  };
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.role === 'user';
+    const isSpeaking = speakingMessageId === item.id;
     return (
       <View style={[styles.messageContainer, isUser && styles.userMessageContainer]}>
-        {!isUser && <View style={styles.aiAvatar}><Icon name={Icons.sparkles} size={16} color="#0D0D0D" /></View>}
+        {!isUser && (
+            <View style={styles.aiAvatar}>
+              <Image source={require('../assets/ai-avatar.png')} style={styles.avatarImageSmall} />
+            </View>
+        )}
         <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble]}>
           <Text style={[styles.messageText, isUser && styles.userMessageText]}>{item.content}</Text>
+          {!isUser && (
+            <TouchableOpacity style={[styles.speakerButton, isSpeaking && styles.speakerButtonActive]} onPress={() => toggleSpeaking(item.id, item.content)}>
+              <Icon name={isSpeaking ? Icons.speakerSlash : Icons.speaker} size={14} color={isSpeaking ? '#F97316' : '#71717A'} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -257,8 +277,10 @@ export default function ChatScreen() {
 
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.headerAvatar}><Icon name={Icons.sparkles} size={20} color="#F97316" /></View>
-          <View><Text style={styles.headerTitle}>AI Coach</Text><Text style={styles.headerSubtitle}>{isLocalMode ? 'Hugging Face On-Device' : 'Built-in AI'}</Text></View>
+          <View style={styles.headerAvatar}>
+            <Image source={require('../assets/ai-avatar.png')} style={styles.avatarImage} />
+          </View>
+          <View><Text style={styles.headerTitle}>AI Coach</Text><Text style={styles.headerSubtitle}>{isLocalMode ? 'ForgeFit AI Core' : 'Standard Intelligence'}</Text></View>
         </View>
         <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}><Icon name={Icons.x} size={24} color="#71717A" /></TouchableOpacity>
       </View>
@@ -369,7 +391,7 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D0D0D' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#27272A' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#27272A' },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F97316', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
@@ -390,22 +412,45 @@ const styles = StyleSheet.create({
   messagesList: { paddingHorizontal: 20, paddingVertical: 16 },
   messageContainer: { flexDirection: 'row', marginBottom: 16, maxWidth: '85%' },
   userMessageContainer: { alignSelf: 'flex-end' },
-  aiAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F97316', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
-  messageBubble: { padding: 14, borderRadius: 18, maxWidth: '100%' },
-  userBubble: { backgroundColor: '#F97316', borderBottomRightRadius: 4 },
-  aiBubble: { backgroundColor: '#18181B', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#27272A' },
-  messageText: { fontSize: 15, color: '#A1A1AA', lineHeight: 22 },
+  aiAvatar: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: '#18181B', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#27272A',
+    overflow: 'hidden'
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
+  },
+  avatarImageSmall: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 18,
+  },
+  messageBubble: { padding: 16, borderRadius: 20, maxWidth: '100%' },
+  userBubble: { backgroundColor: '#F97316', borderBottomRightRadius: 6 },
+  aiBubble: { backgroundColor: '#18181B', borderBottomLeftRadius: 6, borderWidth: 1, borderColor: '#27272A' },
+  messageText: { fontSize: 15, color: '#FFFFFF', lineHeight: 22 },
   userMessageText: { color: '#fff' },
+  speakerButton: { position: 'absolute', bottom: 8, right: 10, padding: 6, borderRadius: 12, backgroundColor: '#27272A' },
+  speakerButtonActive: { backgroundColor: 'rgba(249, 115, 22, 0.2)' },
   typingContainer: { flexDirection: 'row', marginBottom: 16 },
   typingText: { fontSize: 15, color: '#71717A' },
-  quickActions: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
-  quickActionButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#18181B', borderWidth: 1, borderColor: '#27272A' },
+  quickActions: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, gap: 10 },
+  quickActionButton: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 22, backgroundColor: '#18181B', borderWidth: 1, borderColor: '#27272A' },
   quickActionText: { fontSize: 13, color: '#A1A1AA', fontWeight: '500' },
   completionCardContainer: { paddingHorizontal: 20, paddingBottom: 8 },
   suggestionCardContainer: { paddingHorizontal: 20, marginBottom: 12 },
   completionPrompt: { fontSize: 14, color: '#A1A1AA', marginBottom: 8 },
-  inputContainer: { paddingHorizontal: 20, paddingBottom: 30, paddingTop: 10 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', borderRadius: 24, borderWidth: 1, borderColor: '#27272A', paddingHorizontal: 4, paddingVertical: 4 },
+  inputContainer: { paddingHorizontal: 20, paddingBottom: 30, paddingTop: 10, backgroundColor: '#0D0D0D' },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', borderRadius: 24, borderWidth: 1, borderColor: '#3F3F46', paddingHorizontal: 6, paddingVertical: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
   voiceButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   voiceButtonActive: { backgroundColor: 'rgba(249, 115, 22, 0.2)' },
   input: { flex: 1, fontSize: 16, color: '#fff', paddingHorizontal: 12, paddingVertical: 10, maxHeight: 100 },

@@ -6,16 +6,13 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
     "scheme": "forgefit",
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
       "backgroundColor": "#0D0D0D"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.forgefit.app",
+      "bundleIdentifier": "com.achyuthkp.forgefit",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "ForgeFit uses the microphone for voice commands and AI chat."
       }
@@ -25,8 +22,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D0D"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.forgefit.app"
+      "package": "com.achyuthkp.forgefit"
     },
     "web": {
       "favicon": "./assets/favicon.png"
