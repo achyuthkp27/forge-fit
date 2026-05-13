@@ -18,6 +18,7 @@ export default function TabLayout() {
       <Tabs.Screen name="workouts" options={{ title: 'Workouts', tabBarIcon: ({ color }) => <Icon name={Icons.dumbbell} size={22} color={color} /> }} />
       <Tabs.Screen name="exercises" options={{ title: 'Exercises', tabBarIcon: ({ color }) => <Icon name={Icons.list} size={22} color={color} /> }} />
       <Tabs.Screen name="progress" options={{ title: 'Progress', tabBarIcon: ({ color }) => <Icon name={Icons.trendingUp} size={22} color={color} /> }} />
+      <Tabs.Screen name="session" options={{ href: null }} />
     </Tabs>
   );
 }

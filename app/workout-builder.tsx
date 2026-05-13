@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useWorkoutStore } from '../stores/workoutStore';
 import { Icon, Icons } from '../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PlateCalculatorModal } from '../components/PlateCalculatorModal';
+import { AIGeneratorModal } from '../components/AIGeneratorModal';
+import { RestTimerModal } from '../components/RestTimerModal';
+import { ExercisePickerModal } from '../components/ExercisePickerModal';
 
 interface WorkoutExerciseInput {
   exerciseId: string;
@@ -18,18 +22,87 @@ interface WorkoutExerciseInput {
 
 export default function WorkoutBuilder() {
   const router = useRouter();
-  const { exercises, addWorkout, searchExercises } = useWorkoutStore();
+  const { exercises, addWorkout } = useWorkoutStore();
 
   const [workoutName, setWorkoutName] = useState('');
   const [workoutType, setWorkoutType] = useState<'gym' | 'home'>('gym');
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExerciseInput[]>([]);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<number | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [editingExercise, setEditingExercise] = useState<number | null>(null);
 
-  const filteredExercises = searchQuery ? searchExercises(searchQuery) : exercises.slice(0, 10);
+  // AI Workout Generation
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
+
+  // Rest Timer
+  const [showRestTimer, setShowRestTimer] = useState(false);
+
+  // Plate Calculator
+  const [showPlateCalculator, setShowPlateCalculator] = useState(false);
+
+  // Progressive Overload - calculate next workout values
+  const calculateProgressiveOverload = (currentSets: number, currentReps: number, currentWeight: number) => {
+    // Simple progression: increase weight by 2.5% or reps by 1-2
+    const newWeight = currentWeight > 0 ? Math.round((currentWeight * 1.025) * 2.5) / 2.5 : 0;
+    const newReps = currentReps + 1;
+    return { sets: currentSets, reps: newReps, weight: newWeight };
+  };
+
+  // AI Workout Generator
+  const handleGenerateAIWorkout = async (goal: string) => {
+    const goalLower = goal.toLowerCase();
+    let generatedExercises: WorkoutExerciseInput[] = [];
+
+    // Simple keyword matching for workout generation
+    if (goalLower.includes('chest') || goalLower.includes('push') || goalLower.includes('upper body')) {
+      generatedExercises = [
+        { exerciseId: '1', exerciseName: 'Bench Press', sets: 4, reps: 8 },
+        { exerciseId: '2', exerciseName: 'Incline Dumbbell Press', sets: 3, reps: 10 },
+        { exerciseId: '3', exerciseName: 'Cable Fly', sets: 3, reps: 12 },
+        { exerciseId: '11', exerciseName: 'Overhead Press', sets: 3, reps: 10 },
+        { exerciseId: '12', exerciseName: 'Lateral Raises', sets: 3, reps: 12 },
+      ];
+    } else if (goalLower.includes('back') || goalLower.includes('pull') || goalLower.includes('lat')) {
+      generatedExercises = [
+        { exerciseId: '7', exerciseName: 'Pull-Ups', sets: 4, reps: 8 },
+        { exerciseId: '8', exerciseName: 'Barbell Row', sets: 4, reps: 8 },
+        { exerciseId: '9', exerciseName: 'Lat Pulldown', sets: 3, reps: 10 },
+        { exerciseId: '10', exerciseName: 'Seated Cable Row', sets: 3, reps: 12 },
+        { exerciseId: '21', exerciseName: 'Barbell Curl', sets: 3, reps: 10 },
+      ];
+    } else if (goalLower.includes('leg') || goalLower.includes('squat') || goalLower.includes('lower body')) {
+      generatedExercises = [
+        { exerciseId: '15', exerciseName: 'Squat', sets: 4, reps: 8 },
+        { exerciseId: '17', exerciseName: 'Romanian Deadlift', sets: 4, reps: 10 },
+        { exerciseId: '18', exerciseName: 'Leg Curl', sets: 3, reps: 12 },
+        { exerciseId: '19', exerciseName: 'Calf Raises', sets: 4, reps: 15 },
+        { exerciseId: '20', exerciseName: 'Lunges', sets: 3, reps: 10 },
+      ];
+    } else if (goalLower.includes('arm') || goalLower.includes('bicep') || goalLower.includes('tricep')) {
+      generatedExercises = [
+        { exerciseId: '21', exerciseName: 'Barbell Curl', sets: 4, reps: 10 },
+        { exerciseId: '22', exerciseName: 'Hammer Curl', sets: 3, reps: 10 },
+        { exerciseId: '23', exerciseName: 'Tricep Pushdown', sets: 3, reps: 12 },
+        { exerciseId: '24', exerciseName: 'Skull Crushers', sets: 3, reps: 10 },
+        { exerciseId: '5', exerciseName: 'Dips', sets: 3, reps: 8 },
+      ];
+    } else {
+      // Full body default
+      generatedExercises = [
+        { exerciseId: '15', exerciseName: 'Squat', sets: 3, reps: 10 },
+        { exerciseId: '7', exerciseName: 'Pull-Ups', sets: 3, reps: 8 },
+        { exerciseId: '1', exerciseName: 'Bench Press', sets: 3, reps: 10 },
+        { exerciseId: '21', exerciseName: 'Barbell Curl', sets: 3, reps: 10 },
+        { exerciseId: '25', exerciseName: 'Plank', sets: 3, reps: 60 },
+      ];
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setWorkoutExercises(prev => [...prev, ...generatedExercises]);
+    setShowAIGenerator(false);
+    Alert.alert('Success', `Added ${generatedExercises.length} exercises to your workout!`);
+  };
 
   const handleAddExercise = (exercise: any) => {
     const newExercise: WorkoutExerciseInput = {
@@ -40,7 +113,6 @@ export default function WorkoutBuilder() {
     };
     setWorkoutExercises([...workoutExercises, newExercise]);
     setShowExercisePicker(false);
-    setSearchQuery('');
   };
 
   const handleRemoveExercise = (index: number) => {
@@ -94,7 +166,7 @@ export default function WorkoutBuilder() {
     setWorkoutExercises(updated);
   };
 
-  const handleSaveWorkout = () => {
+  const handleSaveWorkout = async () => {
     if (!workoutName.trim() || workoutExercises.length === 0) return;
 
     const workout = {
@@ -116,9 +188,10 @@ export default function WorkoutBuilder() {
         return exercise?.muscleGroups || [];
       }))],
       createdAt: new Date(),
+      estimatedDuration: 45,
     };
 
-    addWorkout(workout);
+    await addWorkout(workout);
     router.back();
   };
 
@@ -340,44 +413,47 @@ export default function WorkoutBuilder() {
             </>
           )}
         </TouchableOpacity>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => setShowAIGenerator(true)}>
+            <Icon name={Icons.zap} size={20} color="#F97316" />
+            <Text style={styles.quickActionText}>AI Generate</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => setShowPlateCalculator(true)}>
+            <Icon name={Icons.circle} size={20} color="#8B5CF6" />
+            <Text style={styles.quickActionText}>Plate Calculator</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => setShowRestTimer(true)}>
+            <Icon name={Icons.timer} size={20} color="#22C55E" />
+            <Text style={styles.quickActionText}>Rest Timer</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      <Modal visible={showExercisePicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.pickerModal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Exercise</Text>
-              <TouchableOpacity onPress={() => { setShowExercisePicker(false); setSearchQuery(''); }}>
-                <Icon name={Icons.x} size={20} color="#71717A" />
-              </TouchableOpacity>
-            </View>
+      {/* AI Workout Generator Modal */}
+      <AIGeneratorModal
+        visible={showAIGenerator}
+        onClose={() => setShowAIGenerator(false)}
+        onGenerate={handleGenerateAIWorkout}
+      />
 
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search exercises..."
-              placeholderTextColor="#52525B"
-            />
+      {/* Rest Timer Modal */}
+      <RestTimerModal
+        visible={showRestTimer}
+        onClose={() => setShowRestTimer(false)}
+      />
 
-            <ScrollView style={styles.exerciseList}>
-              {filteredExercises.map((exercise) => (
-                <TouchableOpacity
-                  key={exercise.id}
-                  style={styles.exerciseItem}
-                  onPress={() => handleAddExercise(exercise)}
-                >
-                  <View>
-                    <Text style={styles.exerciseItemName}>{exercise.name}</Text>
-                    <Text style={styles.exerciseItemMuscles}>{exercise.muscleGroups.join(' • ')}</Text>
-                  </View>
-                  <Icon name={Icons.plus} size={20} color="#F97316" />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <PlateCalculatorModal
+        visible={showPlateCalculator}
+        onClose={() => setShowPlateCalculator(false)}
+      />
+
+      <ExercisePickerModal
+        visible={showExercisePicker}
+        onClose={() => setShowExercisePicker(false)}
+        onAddExercise={handleAddExercise}
+      />
     </View>
   );
 }
@@ -436,12 +512,7 @@ const styles = StyleSheet.create({
   helpLabel: { fontSize: 13, color: '#F97316', fontWeight: '600', width: 80 },
   helpDesc: { fontSize: 13, color: '#71717A', flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  pickerModal: { backgroundColor: '#18181B', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
-  searchInput: { backgroundColor: '#27272A', borderRadius: 12, padding: 12, color: '#fff', fontSize: 16, marginBottom: 16 },
-  exerciseList: { flex: 1 },
-  exerciseItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#27272A' },
-  exerciseItemName: { fontSize: 16, color: '#fff', fontWeight: '500' },
-  exerciseItemMuscles: { fontSize: 12, color: '#71717A', marginTop: 4 },
+  quickActions: { flexDirection: 'row', gap: 10, marginBottom: 40, paddingTop: 8 },
+  quickActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, backgroundColor: '#18181B', borderRadius: 12, borderWidth: 1, borderColor: '#27272A' },
+  quickActionText: { fontSize: 13, color: '#fff', fontWeight: '500' },
 });

@@ -5,3 +5,8 @@ export * from './MarkDoneCard';
 export * from './CelebrationBadge';
 export * from './MotivationalQuote';
 export * from './ProgressRing';
+export * from './Modal';
+export * from './StatCard';
+export * from './SearchInput';
+export * from './EmptyState';
+export * from './ErrorBoundary';

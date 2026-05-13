@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon, Icons } from '../../components/Icon';
@@ -9,7 +10,8 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function Workouts() {
   const router = useRouter();
-  const { workouts, sessions, startSession, suggestedWorkout, addWorkout } = useWorkoutStore();
+  const insets = useSafeAreaInsets();
+  const { workouts, sessions, startSession, suggestedWorkout, addWorkout, deleteWorkout } = useWorkoutStore();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showWorkoutOptions, setShowWorkoutOptions] = useState(false);
   const [selectedWorkoutForOptions, setSelectedWorkoutForOptions] = useState<any>(null);
@@ -32,14 +34,17 @@ export default function Workouts() {
     router.push('/workout-builder');
   };
 
-  const handleCopyWorkout = (workout: any) => {
+  const handleCopyWorkout = async (workout: any) => {
     const copy = {
       ...workout,
       id: Date.now().toString(),
       name: `${workout.name} (Copy)`,
       createdAt: new Date(),
+      exercises: workout.exercises || [],
+      type: workout.type || 'gym',
+      muscleGroups: workout.muscleGroups || [],
     };
-    addWorkout(copy);
+    await addWorkout(copy);
     setShowWorkoutOptions(false);
     setSelectedWorkoutForOptions(null);
   };
@@ -53,8 +58,8 @@ export default function Workouts() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            useWorkoutStore.getState().deleteWorkout(workout.id);
+          onPress: async () => {
+            await deleteWorkout(workout.id);
             setShowWorkoutOptions(false);
             setSelectedWorkoutForOptions(null);
           }
@@ -63,10 +68,14 @@ export default function Workouts() {
     );
   };
 
-  const handleLongPressWorkout = (workout: any) => {
-    setSelectedWorkoutForOptions(workout);
-    setShowWorkoutOptions(true);
-  };
+   const handleLongPressWorkout = (workout: any) => {
+     // Provide immediate visual feedback by setting selected state
+     setSelectedWorkoutForOptions(workout);
+     // Small delay to show visual feedback before opening options modal
+     setTimeout(() => {
+       setShowWorkoutOptions(true);
+     }, 100);
+   };
 
   const handleSelectDayForSchedule = (day: string) => {
     setSelectedDayForSchedule(day);
@@ -121,9 +130,9 @@ export default function Workouts() {
                     <View style={[styles.dayWorkout, isToday && styles.dayWorkoutToday]}>
                       <Text style={styles.dayWorkoutText} numberOfLines={2} ellipsizeMode="tail">{workout.name}</Text>
                     </View>
-                  ) : (
-                    <View style={styles.dayEmpty}><Icon name={Icons.plus} size={14} color="#52525B" /></View>
-                  )}
+                   ) : (
+                     <Text style={styles.dayEmptyText}>Rest Day</Text>
+                   )}
                 </TouchableOpacity>
               );
             })}
@@ -150,7 +159,12 @@ export default function Workouts() {
               const daysSince = lastSession ? Math.floor((Date.now() - new Date(lastSession.startTime).getTime()) / (1000 * 60 * 60 * 24)) : null;
               return (
                 <View key={workout.id} style={styles.workoutCard}>
-                  <TouchableOpacity style={styles.workoutContent} onPress={() => handleStartWorkout(workout)} onLongPress={() => handleLongPressWorkout(workout)}>
+                   <TouchableOpacity 
+                     style={styles.workoutContent} 
+                     onPress={() => handleStartWorkout(workout)} 
+                     onLongPress={() => handleLongPressWorkout(workout)}
+                     activeOpacity={0.7}
+                   >
                     <View style={styles.workoutInfo}>
                       <Text style={styles.workoutName}>{workout.name}</Text>
                       <View style={styles.workoutMeta}>
@@ -177,7 +191,10 @@ export default function Workouts() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={handleCreateNew}>
+      <TouchableOpacity 
+        style={[styles.fab, { bottom: Math.max(30, insets.bottom + 20) }]} 
+        onPress={handleCreateNew}
+      >
         <LinearGradient colors={['#F97316', '#EA580C']} style={StyleSheet.absoluteFill} />
         <Icon name={Icons.plus} size={32} color="#0D0D0D" />
       </TouchableOpacity>
@@ -251,8 +268,8 @@ const styles = StyleSheet.create({
   aiCardText: { flex: 1 },
   aiTitle: { fontSize: 16, fontWeight: '600', color: '#fff' },
   aiSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#71717A', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
+  section: { marginBottom: 20 },
+  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#71717A', marginBottom: 16, textTransform: 'uppercase', letterSpacing: 1 },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#18181B', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#27272A' },
   dayColumn: { alignItems: 'center', flex: 1 },
   dayColumnToday: {},
@@ -260,14 +277,14 @@ const styles = StyleSheet.create({
   dayLabelToday: { color: '#F97316' },
   dayWorkout: { backgroundColor: '#27272A', paddingHorizontal: 6, paddingVertical: 8, borderRadius: 8, width: '100%', minHeight: 40, justifyContent: 'center', alignItems: 'center' },
   dayWorkoutToday: { backgroundColor: '#F97316' },
-  dayWorkoutText: { fontSize: 11, color: '#fff', fontWeight: '600', textAlign: 'center' },
+   dayWorkoutText: { fontSize: 11, color: '#fff', fontWeight: '600', textAlign: 'center' },
   dayEmpty: { width: '100%', minHeight: 40, justifyContent: 'center', alignItems: 'center' },
   dayEmptyText: { fontSize: 14, color: '#52525B' },
-  emptyState: { alignItems: 'center', padding: 40, backgroundColor: '#18181B', borderRadius: 16, borderWidth: 1, borderColor: '#27272A' },
-  emptyIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#27272A', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: 4 },
-  emptyDesc: { fontSize: 14, color: '#71717A', marginBottom: 20 },
-  emptyCTA: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F97316', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24 },
+  emptyState: { alignItems: 'center', padding: 32, backgroundColor: '#18181B', borderRadius: 16, borderWidth: 1, borderColor: '#27272A' },
+  emptyIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#27272A', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: 8 },
+  emptyDesc: { fontSize: 14, color: '#71717A', marginBottom: 20, textAlign: 'center' },
+  emptyCTA: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F97316', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 24, minHeight: 52 },
   emptyCTAText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   workoutCard: { backgroundColor: '#18181B', borderRadius: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#27272A' },
   workoutContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
@@ -283,7 +300,7 @@ const styles = StyleSheet.create({
   exerciseCount: { fontSize: 13, color: '#71717A' },
   lastSession: { fontSize: 12, color: '#52525B', marginTop: 4 },
   startButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(249, 115, 22, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  fab: { position: 'absolute', bottom: 30, right: 24, width: 64, height: 64, borderRadius: 32, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', shadowColor: '#F97316', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 10 },
+  fab: { position: 'absolute', right: 24, width: 64, height: 64, borderRadius: 32, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', shadowColor: '#F97316', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 10 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#18181B', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },

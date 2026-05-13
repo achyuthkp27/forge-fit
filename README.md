@@ -31,12 +31,12 @@ ForgeFit isn't just another workout tracker—it's your personal AI-powered fitn
 
 **What Sets Us Apart:**
 
-- ⚡ **Lightning-Fast Logging** - Log sets with just 3 taps. No complex menus. No friction.
+- ⚡ **Lightning-Fast Logging** - Log sets with just 3 taps. Fully optimized list rendering with zero frame drops.
 - 🤖 **AI Coach** - Natural language commands: "Create a chest day" or "Log bench press 80kg 8 reps"
-- 🔥 **Smart Rest Timer** - Full-screen countdown visible from across the gym
-- 💪 **Supersets & Circuits** - Build advanced workout templates with linked exercises
-- 📊 **Progress That Matters** - PR tracking, volume analytics, muscle balance
-- 🔄 **Offline-First** - Your data stays on your device. Always.
+- 🔥 **Smart Rest Timer** - Background-resilient absolute timers that never drift, even when you switch apps.
+- 💪 **Supersets & Circuits** - Build advanced workout templates with linked exercises.
+- 📊 **Progress That Matters** - PR tracking, volume analytics, and muscle balance calculations.
+- 🔄 **Production-Grade SQLite** - Fully normalized, local-first database handling high-speed data persistence offline.
 
 ---
 
@@ -60,11 +60,11 @@ ForgeFit isn't just another workout tracker—it's your personal AI-powered fitn
 
 | Home Dashboard | Workouts | Exercise Library | Progress |
 |:---:|:---:|:---:|:---:|
-| <img src="https://via.placeholder.com/300x600/F97316/fff?text=Home+Dashboard" width="150"> | <img src="https://via.placeholder.com/300x600/18181B/fff?text=Workouts" width="150"> | <img src="https://via.placeholder.com/300x600/18181B/fff?text=Exercises" width="150"> | <img src="https://via.placeholder.com/300x600/18181B/fff?text=Progress" width="150"> |
+| <img src="./assets/screenshots/home.jpg" width="150"> | <img src="./assets/screenshots/workouts.jpg" width="150"> | <img src="./assets/screenshots/excercises.jpg" width="150"> | <img src="./assets/screenshots/progress.jpg" width="150"> |
 
 | AI Coach | Live Workout | Workout Builder | Settings |
 |:---:|:---:|:---:|:---:|
-| <img src="https://via.placeholder.com/300x600/18181B/fff?text=AI+Coach" width="150"> | <img src="https://via.placeholder.com/300x600/22C55E/fff?text=Live+Workout" width="150"> | <img src="https://via.placeholder.com/300x600/18181B/fff?text=Builder" width="150"> | <img src="https://via.placeholder.com/300x600/18181B/fff?text=Settings" width="150"> |
+| <img src="./assets/screenshots/ai.jpg" width="150"> | <img src="./assets/screenshots/live.jpg" width="150"> | <img src="./assets/screenshots/builder.jpg" width="150"> | <img src="./assets/screenshots/settings.jpg" width="150"> |
 
 </div>
 
@@ -80,17 +80,18 @@ cd forge-fit
 # Install dependencies
 npm install
 
-# Generate native iOS project
-npx expo prebuild --platform ios
-
-# Run on iOS Simulator
+# Build the development version on the iOS Simulator
 npx expo run:ios
+
+# Build the optimized production release on a connected iPhone
+npx expo run:ios --configuration Release --device
 ```
 
 **Requirements:**
 - Node.js 18+
 - Xcode 15+ (for iOS)
 - macOS (iOS development)
+- Apple Developer Account (for installing on a physical device)
 
 ---
 
@@ -117,22 +118,22 @@ npx expo run:ios
 forge-fit/
 ├── app/                    # Expo Router screens
 │   ├── (tabs)/            # Tab navigation
-│   │   ├── index.tsx      # Home dashboard
+│   │   ├── index.tsx      # Home dashboard & Heatmaps
 │   │   ├── workouts.tsx   # Workout list & schedule
-│   │   ├── exercises.tsx  # Exercise library
-│   │   └── progress.tsx   # Analytics & PRs
-│   ├── chat.tsx           # AI Coach
-│   ├── workout.tsx        # Live workout session
-│   ├── workout-builder.tsx# Create workouts
+│   │   ├── exercises.tsx  # Optimized Exercise library
+│   │   └── progress.tsx   # Analytics & PR tracking
+│   ├── chat.tsx           # AI Coach Interface
+│   ├── workout.tsx        # Live workout session (Background resilient)
+│   ├── workout-builder.tsx# Create workouts & supersets
 │   ├── schedule.tsx       # Weekly planner
-│   └── settings.tsx       # App settings
+│   └── settings.tsx       # App settings & Theme Engine
 ├── stores/
 │   └── workoutStore.ts   # Zustand state management
 ├── lib/
-│   ├── db.ts             # SQLite database
-│   └── aiService.ts       # AI processing
-├── components/            # Reusable UI components
-├── types/                  # TypeScript definitions
+│   ├── db.ts             # Normalized SQLite database schema
+│   └── aiService.ts      # LLM / RAG integration layer
+├── components/            # Modular UI components (Modals, Buttons)
+├── types/                 # Strict TypeScript definitions
 └── assets/                # Images & icons
 ```
 

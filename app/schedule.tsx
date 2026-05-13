@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon, Icons } from '../components/Icon';
 import { useWorkoutStore } from '../stores/workoutStore';
+import { WeeklyScheduleItem } from '../types';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -16,21 +17,39 @@ const REST_TIPS = [
   'Foam rolling helps reduce soreness',
 ];
 
-interface ScheduleItem {
-  dayIndex: number;
-  workoutId: string | null;
-  isCompleted: boolean;
-}
+// Convert store's WeeklyScheduleItem to local ScheduleItem
+const toScheduleItem = (weekly: WeeklyScheduleItem, dayIndex: number): any => ({
+  dayIndex,
+  workoutId: weekly.workoutId || null,
+  isCompleted: false,
+});
+
+// Convert local ScheduleItem to store's WeeklyScheduleItem
+const toWeeklyScheduleItem = (item: any): WeeklyScheduleItem => ({
+  day: DAYS[item.dayIndex],
+  workoutId: item.workoutId || undefined,
+  workoutName: item.workoutId || undefined,
+});
 
 export default function ScheduleScreen() {
   const router = useRouter();
-  const { workouts } = useWorkoutStore();
+  const { workouts, weeklySchedule, loadWeeklySchedule, updateScheduleItem } = useWorkoutStore();
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
-  const [schedule, setSchedule] = useState<ScheduleItem[]>(
-    DAYS.map((_, i) => ({ dayIndex: i, workoutId: null, isCompleted: false }))
+  const [schedule, setSchedule] = useState<any[]>(
+    weeklySchedule.length > 0 ? weeklySchedule.map((w, i) => toScheduleItem(w, i)) : DAYS.map((_, i) => ({ dayIndex: i, workoutId: null, isCompleted: false }))
   );
   const [showPicker, setShowPicker] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadWeeklySchedule();
+  }, []);
+
+  useEffect(() => {
+    if (weeklySchedule.length > 0) {
+      setSchedule(weeklySchedule.map((w, i) => toScheduleItem(w, i)));
+    }
+  }, [weeklySchedule]);
 
   const weekDates = useMemo(() => {
     const today = new Date();
@@ -43,11 +62,13 @@ export default function ScheduleScreen() {
     });
   }, [currentWeekOffset]);
 
-  const handleSelectWorkout = (workoutId: string | null) => {
+  const handleSelectWorkout = async (workoutId: string | null) => {
     if (selectedDay !== null) {
+      const newItem = { dayIndex: selectedDay, workoutId, isCompleted: false };
       setSchedule(prev => prev.map(item =>
-        item.dayIndex === selectedDay ? { ...item, workoutId, isCompleted: false } : item
+        item.dayIndex === selectedDay ? newItem : item
       ));
+      await updateScheduleItem(toWeeklyScheduleItem(newItem));
     }
     setShowPicker(false);
     setSelectedDay(null);
@@ -58,10 +79,14 @@ export default function ScheduleScreen() {
     setShowPicker(true);
   };
 
-  const toggleCompletion = (dayIndex: number) => {
-    setSchedule(prev => prev.map(item =>
-      item.dayIndex === dayIndex ? { ...item, isCompleted: !item.isCompleted } : item
+  const toggleCompletion = async (dayIndex: number) => {
+    const item = schedule.find(s => s.dayIndex === dayIndex);
+    if (!item) return;
+    const updatedItem = { ...item, isCompleted: !item.isCompleted };
+    setSchedule(prev => prev.map(s =>
+      s.dayIndex === dayIndex ? updatedItem : s
     ));
+    await updateScheduleItem(toWeeklyScheduleItem(updatedItem));
   };
 
   const getWorkoutForDay = (dayIndex: number) => {
@@ -230,7 +255,7 @@ const styles = StyleSheet.create({
   dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   dayLabel: { fontSize: 14, color: '#71717A', fontWeight: '600' },
   dayLabelToday: { color: '#F97316' },
-  dayDate: { fontSize: 20, fontWeight: '700', color: '#71717A', marginTop: 2 },
+  dayDate: { fontSize: 20, fontWeight: '700', color: '#fff', marginTop: 2 },
   completeBtn: { padding: 4 },
   completeBtnActive: {},
   workoutInfo: { gap: 4 },

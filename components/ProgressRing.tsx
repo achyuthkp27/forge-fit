@@ -103,8 +103,8 @@ export function ProgressRing({
         {showPercentage && (
           <Text style={styles.percentage}>{percentage}%</Text>
         )}
-        {label && <Text style={styles.label}>{label}</Text>}
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</subtitle>}
+        {label ? <Text style={styles.label}>{label}</Text> : null}
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
     </View>
   );

@@ -1,66 +1,101 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
-type IconName = keyof typeof Ionicons.glyphMap;
+export type IconName = string;
 
 interface IconProps {
-  name: IconName;
+  name: string;
   size?: number;
   color?: string;
+  /** Accessibility label for screen readers */
+  accessibilityLabel?: string;
+  /** Accessibility hint for screen readers */
+  accessibilityHint?: string;
+  /** Whether the element is accessible */
+  accessible?: boolean;
 }
 
-export const Icon = ({ name, size = 24, color = '#fff' }: IconProps) => {
-  return <Ionicons name={name} size={size} color={color} />;
+export const Icon = ({ 
+  name, 
+  size = 24, 
+  color = '#fff',
+  accessibilityLabel,
+  accessibilityHint,
+  accessible = true
+}: IconProps) => {
+  return (
+    <Ionicons 
+      name={name as any} 
+      size={size} 
+      color={color}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessible={accessible}
+    />
+  );
 };
 
-export const Icons = {
-  home: 'home' as IconName,
-  dumbbell: 'barbell' as IconName,
-  barbell: 'barbell' as IconName,
-  list: 'list' as IconName,
-  grid: 'grid' as IconName,
-  trendingUp: 'trending-up' as IconName,
-  messageCircle: 'chatbubbles' as IconName,
-  flame: 'flame' as IconName,
-  calendar: 'calendar' as IconName,
-  chevronRight: 'chevron-forward' as IconName,
-  chevronDown: 'chevron-down' as IconName,
-  chevronUp: 'chevron-up' as IconName,
-  chevronLeft: 'chevron-back' as IconName,
-  play: 'play' as IconName,
-  search: 'search' as IconName,
-  plus: 'add' as IconName,
-  mic: 'mic' as IconName,
-  volume2: 'volume-high' as IconName,
-  sparkles: 'sparkles' as IconName,
-  checkCircle: 'checkmark-circle' as IconName,
-  lightbulb: 'bulb' as IconName,
-  x: 'close' as IconName,
-  send: 'send' as IconName,
-  trophy: 'trophy' as IconName,
-  activity: 'barbell' as IconName,
-  settings: 'settings' as IconName,
-  homeOutline: 'home-outline' as IconName,
-  dumbbellOutline: 'barbell-outline' as IconName,
-  heart: 'heart-outline' as IconName,
-  heartFilled: 'heart' as IconName,
-  batteryLow: 'battery-dead' as IconName,
-  batteryMedium: 'battery-half' as IconName,
-  batteryHigh: 'battery-full' as IconName,
-  calculator: 'calculator' as IconName,
-  timer: 'timer' as IconName,
-  bell: 'notifications' as IconName,
-  download: 'download' as IconName,
-  upload: 'cloud-upload' as IconName,
-  trash: 'trash' as IconName,
-  refresh: 'refresh' as IconName,
-  edit2: 'create' as IconName,
-  circle: 'ellipse-outline' as IconName,
-  moon: 'moon-outline' as IconName,
-  copy: 'copy-outline' as IconName,
-  speaker: 'volume-high' as IconName,
-  speakerSlash: 'volume-mute' as IconName,
-  cable: 'infinite' as IconName,
-  machine: 'layers' as IconName,
-  bodyweight: 'body' as IconName,
+export const Icons: Record<string, string> = {
+  home: 'home',
+  info: 'information-circle',
+  xCircle: 'close-circle',
+  alertTriangle: 'alert-triangle',
+  dumbbell: 'barbell',
+  barbell: 'barbell',
+  list: 'list',
+  grid: 'grid',
+  trendingUp: 'trending-up',
+  messageCircle: 'chatbubbles',
+  flame: 'flame',
+  calendar: 'calendar',
+  chevronRight: 'chevron-forward',
+  chevronDown: 'chevron-down',
+  chevronUp: 'chevron-up',
+  chevronLeft: 'chevron-back',
+  play: 'play',
+  search: 'search',
+  plus: 'add',
+  mic: 'mic',
+  volume2: 'volume-high',
+  sparkles: 'sparkles',
+  checkCircle: 'checkmark-circle',
+  lightbulb: 'bulb',
+  x: 'close',
+  send: 'send',
+  trophy: 'trophy',
+  activity: 'barbell',
+  settings: 'settings',
+  homeOutline: 'home-outline',
+  dumbbellOutline: 'barbell-outline',
+  heart: 'heart-outline',
+  heartFilled: 'heart',
+  batteryLow: 'battery-dead',
+  batteryMedium: 'battery-half',
+  batteryHigh: 'battery-full',
+  calculator: 'calculator',
+  timer: 'timer',
+  bell: 'notifications',
+  download: 'download',
+  upload: 'cloud-upload',
+  trash: 'trash',
+  refresh: 'refresh',
+  edit2: 'create',
+  circle: 'ellipse-outline',
+  moon: 'moon-outline',
+  copy: 'copy-outline',
+  speaker: 'volume-high',
+  speakerSlash: 'volume-mute',
+  cable: 'infinite',
+  machine: 'layers',
+  bodyweight: 'body',
+  lineChart: 'stats-chart',
+  barChart: 'bar-chart',
+  ruler: 'resize',
+  file: 'document-text',
+  fileText: 'document',
+  zap: 'flash',
+  clock: 'time-outline',
+  share: 'share-outline',
+  arrowLeft: 'arrow-back',
+  history: 'time',
 };

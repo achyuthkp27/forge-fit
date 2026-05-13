@@ -100,7 +100,7 @@ export class AIService {
     return response;
   }
 
-  private async runOnDeviceInference(message: string, context?: any): Promise<AIResponse> {
+  private async runOnDeviceInference(message: string, context?: { activeSession?: WorkoutSession | null }): Promise<AIResponse> {
     try {
       // In production, this would call the actual GGUF model via CoreML
       return await this.processMessageLocal(message, context);

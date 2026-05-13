@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { Exercise, Workout, WorkoutSession, SetLog, PersonalRecord, UserSettings, ChatMessage, WorkoutTemplate } from '../types';
+import { Exercise, Workout, WorkoutSession, SetLog, PersonalRecord, UserSettings, ChatMessage, WorkoutTemplate, BodyMeasurement, SleepRecord, WeeklyScheduleItem } from '../types';
 import { mockExercises, mockWorkouts, mockPersonalRecords } from '../data/mockData';
-import { createSession, completeSession as dbCompleteSession, logSessionSet, completeSessionSet, addPersonalRecord as dbAddPR, initDatabase, getAllSessions, getSessionSets, getPersonalRecords, getPreviousSessionData } from '../lib/db';
+import { createSession, completeSession as dbCompleteSession, logSessionSet, completeSessionSet, addPersonalRecord as dbAddPR, initDatabase, getAllSessions, getSessionSets, getPersonalRecords, getPreviousSessionData, getSettings, saveSetting, clearAllData, getBodyMeasurements, saveBodyMeasurements as dbSaveBodyMeasurements, getSleepHistory, saveSleepHistory as dbSaveSleepHistory } from '../lib/db';
 
 interface WorkoutState {
   exercises: Exercise[];
@@ -25,7 +25,7 @@ interface WorkoutState {
   personalRecords: PersonalRecord[];
   addPersonalRecord: (exerciseId: string, weight: number, reps: number) => Promise<void>;
   settings: UserSettings;
-  updateSettings: (settings: Partial<UserSettings>) => void;
+  updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
   messages: ChatMessage[];
   addMessage: (message: ChatMessage) => void;
   clearMessages: () => void;
@@ -33,10 +33,25 @@ interface WorkoutState {
   setLoading: (loading: boolean) => void;
   suggestedWorkout: WorkoutTemplate | null;
   setSuggestedWorkout: (template: WorkoutTemplate | null) => void;
-  addWorkout: (workout: any) => void;
+  addWorkout: (workout: Workout) => void;
   deleteWorkout: (id: string) => void;
   duplicateWorkout: (id: string) => void;
   getPreviousExerciseData: (exerciseId: string) => Promise<{ weight: number; reps: number } | null>;
+  loadData: () => Promise<void>;
+  checkAndUpdatePR: (exerciseId: string, weight: number, reps: number) => boolean;
+  getProgressiveOverloadSuggestion: (exerciseId: string) => { exerciseName: string; lastWeight: number; suggestedWeight: number; increase: string } | null;
+  bodyMeasurements: BodyMeasurement[];
+  loadBodyMeasurements: () => Promise<void>;
+  saveBodyMeasurements: (measurement: BodyMeasurement) => Promise<void>;
+  sleepHistory: SleepRecord[];
+  loadSleepHistory: () => Promise<void>;
+  saveSleepHistory: (record: SleepRecord) => Promise<void>;
+  weeklySchedule: WeeklyScheduleItem[];
+  loadWeeklySchedule: () => Promise<void>;
+  updateScheduleItem: (item: WeeklyScheduleItem) => void;
+  loadSettings: () => Promise<void>;
+  clearHistory: () => Promise<void>;
+  isInitialized: boolean;
 }
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
@@ -156,7 +171,21 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({ personalRecords: [...personalRecords, pr] });
   },
   settings: { unit: 'kg', theme: 'dark', goals: ['Build muscle'], experienceLevel: 'intermediate' },
-  updateSettings: (newSettings) => set(state => ({ settings: { ...state.settings, ...newSettings } })),
+  updateSettings: async (newSettings) => {
+    const { settings } = get();
+    const updated = { ...settings, ...newSettings };
+    set({ settings: updated });
+    
+    try {
+      for (const key of Object.keys(newSettings)) {
+        const val = newSettings[key as keyof UserSettings];
+        const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+        await saveSetting(key, stringVal);
+      }
+    } catch (e) {
+      console.log('Error saving settings:', e);
+    }
+  },
   messages: [],
   addMessage: (message) => set(state => ({ messages: [...state.messages, message] })),
   clearMessages: () => set({ messages: [] }),
@@ -164,7 +193,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   suggestedWorkout: null,
   setSuggestedWorkout: (template) => set({ suggestedWorkout: template }),
-  addWorkout: (workout: any) => set(state => ({ workouts: [...state.workouts, workout] })),
+  addWorkout: (workout: Workout) => set(state => ({ workouts: [...state.workouts, workout] })),
   deleteWorkout: (id: string) => set(state => ({ workouts: state.workouts.filter(w => w.id !== id) })),
   duplicateWorkout: (id: string) => {
     const { workouts } = get();
@@ -231,18 +260,18 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     const { sessions, exercises } = get();
     const exercise = exercises.find(e => e.id === exerciseId);
     if (!exercise) return null;
-    
+
     const exerciseSessions = sessions.filter(s => s.sets.some(set => set.exerciseId === exerciseId));
     if (exerciseSessions.length < 2) return null;
-    
+
     const lastSession = exerciseSessions[exerciseSessions.length - 1];
     const prevSession = exerciseSessions[exerciseSessions.length - 2];
-    
+
     const lastWeight = Math.max(...lastSession.sets.filter(s => s.exerciseId === exerciseId).map(s => s.weight));
     const prevWeight = Math.max(...prevSession.sets.filter(s => s.exerciseId === exerciseId).map(s => s.weight));
-    
+
     const increase = lastWeight > prevWeight ? '+5%' : lastWeight === prevWeight ? 'Maintain' : '-5%';
-    
+
     return {
       exerciseName: exercise.name,
       lastWeight,
@@ -250,4 +279,143 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       increase,
     };
   },
+  bodyMeasurements: [],
+  loadBodyMeasurements: async () => {
+    try {
+      const data = await getBodyMeasurements();
+      if (data) {
+        // Handle both single object and array format for backward compatibility
+        const measurementsArray = Array.isArray(data) ? data : [data];
+        set({ bodyMeasurements: measurementsArray as unknown as BodyMeasurement[] });
+      } else {
+        set({ bodyMeasurements: [] });
+      }
+    } catch (e) {
+      console.log('Error loading body measurements:', e);
+      set({ bodyMeasurements: [] });
+    }
+  },
+  saveBodyMeasurements: async (measurement: BodyMeasurement) => {
+    const { bodyMeasurements } = get();
+    const existing = bodyMeasurements.findIndex(b => b.id === measurement.id);
+    let updated;
+    if (existing >= 0) {
+      updated = [...bodyMeasurements];
+      updated[existing] = measurement;
+    } else {
+      updated = [...bodyMeasurements, measurement];
+    }
+    set({ bodyMeasurements: updated });
+    try {
+      // Pass the whole array or the latest. The db.ts expects a single BodyMeasurements object for now
+      await dbSaveBodyMeasurements(measurement as any);
+    } catch (e) {
+      console.log('Error saving body measurements:', e);
+    }
+  },
+  sleepHistory: [],
+  loadSleepHistory: async () => {
+    try {
+      const history = await getSleepHistory();
+      // The store uses SleepRecord (with id, quality), but db.ts SleepEntry uses energy instead of quality. 
+      // We map it to handle type inconsistencies.
+      const mapped = history.map((s: any) => ({
+        id: s.id || Date.now().toString() + Math.random(),
+        date: s.date,
+        hours: s.hours,
+        quality: s.quality || s.energy || 5,
+        notes: s.notes
+      }));
+      set({ sleepHistory: mapped });
+    } catch (e) {
+      console.log('Error loading sleep history:', e);
+      set({ sleepHistory: [] });
+    }
+  },
+  saveSleepHistory: async (record: SleepRecord) => {
+    const { sleepHistory } = get();
+    const existing = sleepHistory.findIndex(s => s.id === record.id || s.date === record.date);
+    let updated;
+    if (existing >= 0) {
+      updated = [...sleepHistory];
+      updated[existing] = record;
+    } else {
+      updated = [...sleepHistory, record];
+    }
+    set({ sleepHistory: updated });
+    try {
+      await dbSaveSleepHistory(updated.map(s => ({
+        date: s.date,
+        hours: s.hours,
+        energy: s.quality, // Map quality to energy for db
+      })));
+    } catch (e) {
+      console.log('Error saving sleep history:', e);
+    }
+  },
+  weeklySchedule: [
+    { day: 'Monday' },
+    { day: 'Tuesday' },
+    { day: 'Wednesday' },
+    { day: 'Thursday' },
+    { day: 'Friday' },
+    { day: 'Saturday' },
+    { day: 'Sunday' },
+  ],
+  loadWeeklySchedule: async () => {
+    set({
+      weeklySchedule: [
+        { day: 'Monday' },
+        { day: 'Tuesday' },
+        { day: 'Wednesday' },
+        { day: 'Thursday' },
+        { day: 'Friday' },
+        { day: 'Saturday' },
+        { day: 'Sunday' },
+      ]
+    });
+  },
+  updateScheduleItem: (item: WeeklyScheduleItem) => {
+    const { weeklySchedule } = get();
+    const index = weeklySchedule.findIndex(s => s.day === item.day);
+    if (index >= 0) {
+      const updated = [...weeklySchedule];
+      updated[index] = item;
+      set({ weeklySchedule: updated });
+    }
+  },
+  loadSettings: async () => {
+    try {
+      const loadedSettings = await getSettings();
+      if (loadedSettings) {
+        const defaults: UserSettings = { unit: 'kg', theme: 'dark', goals: ['Build muscle'], experienceLevel: 'intermediate' };
+        const merged = { ...defaults, ...loadedSettings } as unknown as UserSettings;
+        
+        // Parse array/object fields that might be stored as strings
+        if (typeof merged.goals === 'string') {
+          try {
+            merged.goals = JSON.parse(merged.goals);
+          } catch {
+            merged.goals = [];
+          }
+        }
+        if (!Array.isArray(merged.goals)) merged.goals = [];
+
+        set({ settings: merged });
+      }
+      set({ isInitialized: true });
+    } catch (e) {
+      console.log('Error loading settings:', e);
+      set({ isInitialized: true });
+    }
+  },
+  clearHistory: async () => {
+    try {
+      await clearAllData();
+      set({ sessions: [], personalRecords: [] });
+    } catch (e) {
+      console.log('Error clearing history:', e);
+    }
+  },
+  isInitialized: false,
 }));
